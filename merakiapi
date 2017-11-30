@@ -118,6 +118,42 @@ def listStaticRoutes(key, orgid):
             if len(networkToList):
                 return
 
+def staticRoutesCmd():
+    if addsubnet:
+        if len(subnet) < 1:
+            print "Missing subnet"
+            sys.exit(5)
+        p = re.compile('\d+\.\d+\.\d+\.\d+/\d+')
+        if not p.match(subnet):
+            print "Bad subnet format: %s" % (subnet)
+            sys.exit(6)
+
+        if len(subnetname) < 1:
+            print "Missing subnet name"
+            sys.exit(5)
+
+        if len(gateway) < 1:
+            print "Missing gateway"
+            sys.exit(5)
+        p = re.compile('\d+\.\d+\.\d+\.\d+')
+        if not p.match(gateway):
+            print "Bad gateway format: %s" % (gateway)
+            sys.exit(61)
+
+        if len(networkToList) < 1:
+            print "Missing network"
+            sys.exit(5)
+
+        network = findNetwork(apikey, orgid, networkToList)
+        if network == False:
+            print "Cannot find network: " % (networkToList)
+            sys.exit(7)
+        if verbose:
+            print " Network id = %s" % (network['id'])
+        addStaticRoute(apikey, network['id'], subnet, subnetname, gateway)
+    else:
+        listStaticRoutes(apikey, orgid)
+
 if 'MERAKI_APIKEY' in os.environ:
     apikey = os.environ['MERAKI_APIKEY']
 if 'MERAKI_ORGID' in os.environ:
@@ -148,30 +184,11 @@ for opt, arg in options:
     elif opt in ('-v', '--verbose'):
         verbose = True
 
-if addsubnet:
-    if len(subnet) < 1:
-        print "Missing subnet"
-        sys.exit(5)
-    p = re.compile('\d+\.\d+\.\d+\.\d+/\d+')
-    if not p.match(subnet):
-        print "Bad subnet format: %s" % (subnet)
-        sys.exit(6)
+if len(remainder)<1:
+    print "Please specify a command: staticroutes"
+    sys.exit(88)
+cmd = remainder[0]
 
-    if len(subnetname) < 1:
-        print "Missing subnet name"
-        sys.exit(5)
-
-    if len(gateway) < 1:
-        print "Missing gateway"
-        sys.exit(5)
-    p = re.compile('\d+\.\d+\.\d+\.\d+')
-    if not p.match(gateway):
-        print "Bad gateway format: %s" % (gateway)
-        sys.exit(61)
-
-    if len(networkToList) < 1:
-        print "Missing network"
-        sys.exit(5)
 
 if os.path.isfile(configfile):
     with open(configfile) as fp:
@@ -191,7 +208,7 @@ if organizations == False:
     sys.exit(66)
 
 if len(organizations) > 1:
-    print "APIKEY is assosicated with more than one orgid.  Please specify only one with --orgid."
+    print "APIKEY is associated with more than one orgid.  Please specify only one with --orgid."
     for organization in organizations:
         print "%s,'%s'" % (organization['id'], organization['name'])
     sys.exit(3)
@@ -199,14 +216,8 @@ if len(organizations) > 1:
 if len(orgid) < 1:
     orgid = organizations[0]['id']
 
-if addsubnet:
-    network = findNetwork(apikey, orgid, networkToList)
-    if network == False:
-        print "Cannot find network: " % (networkToList)
-        sys.exit(7)
-    if verbose:
-        print " Network id = %s" % (network['id'])
-    addStaticRoute(apikey, network['id'], subnet, subnetname, gateway)
+if cmd == "staticroutes":
+    staticRoutesCmd()
 else:
-    listStaticRoutes(apikey, orgid)
+    print "Unknown command: %s" % (cmd)
 
