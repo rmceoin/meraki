@@ -5,13 +5,13 @@
 #
 #
 
-import getopt, sys, os.path
+import getopt, sys, os, os.path
 import json
 import yaml
 import re
 import requests
 
-apikey = ''
+apikey = os.environ['MERAKI_APIKEY']
 verbose = False
 networkToList = ''
 configfile = '/usr/local/etc/meraki.yaml'

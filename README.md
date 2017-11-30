@@ -10,15 +10,15 @@ pip install -r requirements.txt
 
 ## API Key
 
-On Unix the scripts will look in `/usr/local/sbin/meraki.yaml`
+There are several ways to pass the Meraki API key to the scripts.
+
+1.  On Unix the scripts will look in `/usr/local/sbin/meraki.yaml`
 for settings.
-
 The YAML file should look like this:
-
 ```
 apikey:
     'your-api-key-here'
 ```
-
-Without the YAML file, the `--apikey` option must be used.
+2. Environmental variable MERAKI_APIKEY
+3. The `--apikey` option.
 
