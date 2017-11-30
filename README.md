@@ -20,3 +20,5 @@ apikey:
     'your-api-key-here'
 ```
 
+Without the YAML file, the `--apikey` option must be used.
+
