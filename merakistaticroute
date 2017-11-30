@@ -11,8 +11,9 @@ import yaml
 import re
 import requests
 
-apikey = os.environ['MERAKI_APIKEY']
 verbose = False
+apikey = os.environ['MERAKI_APIKEY']
+orgid = ''
 networkToList = ''
 configfile = '/usr/local/etc/meraki.yaml'
 addsubnet = False
@@ -91,6 +92,7 @@ def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
     parameters['subnet'] = subnet
     parameters['gatewayIp'] = gatewayIp
     parameters['enabled'] = True
+    parameters['active'] = 'always'
     return postJson(key, url, parameters)
 
 def findNetwork(apikey, orgid, networkName):
@@ -122,6 +124,7 @@ def listStaticRoutes(key, orgid):
 options, remainder = getopt.getopt(sys.argv[1:], 's:v', ['add', 'apikey=',
                                                          'gateway=',
                                                          'name=', 'network=',
+                                                         'orgid=',
                                                          'subnet=',
                                                          'verbose',
                                                          ])
@@ -136,6 +139,8 @@ for opt, arg in options:
         subnetname = arg
     elif opt in ('--network'):
         networkToList = arg
+    elif opt in ('--orgid'):
+        orgid = arg
     elif opt in ('-s', '--subnet'):
         subnet = arg
     elif opt in ('-v', '--verbose'):
@@ -181,17 +186,23 @@ if organizations == False:
     print "Unable to getOrganizations.  Wrong apikey?"
     sys.exit(66)
 
-for organization in organizations:
+if len(organizations) > 1:
+    print "APIKEY is assosicated with more than one orgid.  Please specify only one with --orgid."
+    for organization in organizations:
+        print "%s,'%s'" % (organization['id'], organization['name'])
+    sys.exit(3)
+
+if len(orgid) < 1:
+    orgid = organizations[0]['id']
+
+if addsubnet:
+    network = findNetwork(apikey, orgid, networkToList)
+    if network == False:
+        print "Cannot find network: " % (networkToList)
+        sys.exit(7)
     if verbose:
-        print "Organization: %s" % (organization['name'])
-    if addsubnet:
-        network = findNetwork(apikey, organization['id'], networkToList)
-        if network == False:
-            print "Cannot find network: " % (networkToList)
-            sys.exit(7)
-        if verbose:
-            print " Network id = %s" % (network['id'])
-        addStaticRoute(apikey, network['id'], subnet, subnetname, gateway)
-    else:
-        listStaticRoutes(apikey, organization['id'])
+        print " Network id = %s" % (network['id'])
+    addStaticRoute(apikey, network['id'], subnet, subnetname, gateway)
+else:
+    listStaticRoutes(apikey, orgid)
 
