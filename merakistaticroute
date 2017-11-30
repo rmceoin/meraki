@@ -120,6 +120,8 @@ def listStaticRoutes(key, orgid):
 
 if 'MERAKI_APIKEY' in os.environ:
     apikey = os.environ['MERAKI_APIKEY']
+if 'MERAKI_ORGID' in os.environ:
+    orgid = os.environ['MERAKI_ORGID']
 
 options, remainder = getopt.getopt(sys.argv[1:], 's:v', ['add', 'apikey=',
                                                          'gateway=',
@@ -176,6 +178,8 @@ if os.path.isfile(configfile):
         configuration = yaml.load(fp)
         if 'apikey' in configuration:
             apikey = configuration['apikey']
+        if 'orgid' in configuration:
+            orgid = configuration['orgid']
 
 if len(apikey) < 1:
     print "Missing apikey"
