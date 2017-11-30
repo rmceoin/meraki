@@ -1,0 +1,196 @@
+#!/usr/bin/python
+
+#
+# curl -s -L -H "X-Cisco-Meraki-API-Key: $apikey" -X GET -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
+#
+#
+
+import getopt, sys, os.path
+import json
+import yaml
+import re
+import requests
+
+apikey = ''
+verbose = False
+networkToList = ''
+configfile = '/usr/local/etc/meraki.yaml'
+addsubnet = False
+subnet = ''
+subnetname = ''
+gateway = ''
+
+
+def getJson(key, url):
+
+    headers = {}
+    headers['Content-Type'] = 'application/json'
+    headers['X-Cisco-Meraki-API-Key'] = key
+
+    try:
+        r = requests.get(url, headers=headers)
+    except requests.exceptions.RequestException as e:
+        print "Error: %s" % (e)
+        return False
+
+    if verbose:
+        print "r.status_code = %s" % (r.status_code)
+        print "r.text = %s" % (r.text)
+
+    if r.status_code == 404:
+        print "404 Not found: %s" % (url)
+        return False
+    if r.status_code != 200:
+        print "Error: %s - %s" % (r.status_code, r.text)
+        return False
+
+    data = json.loads(r.text)
+    if len(data) == 0:
+        print "Invalid response for %s" % (url)
+        return 0
+
+    return data
+
+def postJson(key, url, parameters):
+
+    headers = {}
+    headers['Content-Type'] = 'application/json'
+    headers['X-Cisco-Meraki-API-Key'] = key
+
+    try:
+        r = requests.post(url, json=parameters, headers=headers)
+    except requests.exceptions.RequestException as e:
+        print "Error: %s" % (e)
+        return False
+
+    if verbose:
+        print "r.status_code = %s" % (r.status_code)
+        print "r.text = %s" % (r.text)
+
+    if r.status_code == 404:
+        print "404 Not found: %s" % (url)
+        return False
+    if r.status_code != 201:
+        print "Error: %s - %s" % (r.status_code, r.text)
+        return False
+    return True
+
+def getOrganizations(key):
+    url = "https://dashboard.meraki.com/api/v0/organizations"
+    return getJson(key, url)
+
+def getNetworks(key, orgid):
+    url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
+    return getJson(key, url)
+
+def getStaticRoutes(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
+    return getJson(key, url)
+
+def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
+    parameters = {}
+    parameters['name'] = subnetname
+    parameters['subnet'] = subnet
+    parameters['gatewayIp'] = gatewayIp
+    parameters['enabled'] = True
+    return postJson(key, url, parameters)
+
+def findNetwork(apikey, orgid, networkName):
+    networks = getNetworks(apikey, orgid)
+    for network in networks:
+        if verbose:
+            print "Network: %s" % (network['name'])
+        if network['name'] == networkName:
+            return network
+    return False
+
+def listStaticRoutes(key, orgid):
+    networks = getNetworks(apikey, orgid)
+    for network in networks:
+        if verbose:
+            print "Network: %s" % (network['name'])
+
+        if (len(networkToList) < 1) or (networkToList == network['name']):
+            staticRoutes = getStaticRoutes(apikey, network['id'])
+            for staticRoute in staticRoutes:
+                if verbose:
+                    print "  staticRoute: %s" % (staticRoute)
+                print "%s,'%s',%s,%s" % (staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'])
+            if len(networkToList):
+                return
+
+
+
+options, remainder = getopt.getopt(sys.argv[1:], 's:v', ['add', 'apikey=',
+                                                         'gateway=',
+                                                         'name=', 'network=',
+                                                         'subnet=',
+                                                         'verbose',
+                                                         ])
+for opt, arg in options:
+    if opt in ('--add'):
+        addsubnet = True
+    elif opt in ('--apikey'):
+        apikey = arg
+    elif opt in ('--gateway'):
+        gateway = arg
+    elif opt in ('--name'):
+        subnetname = arg
+    elif opt in ('--network'):
+        networkToList = arg
+    elif opt in ('-s', '--subnet'):
+        subnet = arg
+    elif opt in ('-v', '--verbose'):
+        verbose = True
+
+if addsubnet:
+    if len(subnet) < 1:
+        print "Missing subnet"
+        sys.exit(5)
+    p = re.compile('\d+\.\d+\.\d+\.\d+/\d+')
+    if not p.match(subnet):
+        print "Bad subnet format: %s" % (subnet)
+        sys.exit(6)
+
+    if len(subnetname) < 1:
+        print "Missing subnet name"
+        sys.exit(5)
+
+    if len(gateway) < 1:
+        print "Missing gateway"
+        sys.exit(5)
+    p = re.compile('\d+\.\d+\.\d+\.\d+')
+    if not p.match(gateway):
+        print "Bad gateway format: %s" % (gateway)
+        sys.exit(61)
+
+    if len(networkToList) < 1:
+        print "Missing network"
+        sys.exit(5)
+
+if os.path.isfile(configfile):
+    with open(configfile) as fp:
+        configuration = yaml.load(fp)
+        if 'apikey' in configuration:
+            apikey = configuration['apikey']
+
+if len(apikey) < 1:
+    print "Missing apikey"
+    sys.exit(3)
+
+organizations = getOrganizations(apikey)
+for organization in organizations:
+    if verbose:
+        print "Organization: %s" % (organization['name'])
+    if addsubnet:
+        network = findNetwork(apikey, organization['id'], networkToList)
+        if network == False:
+            print "Cannot find network: " % (networkToList)
+            sys.exit(7)
+        if verbose:
+            print " Network id = %s" % (network['id'])
+        addStaticRoute(apikey, network['id'], subnet, subnetname, gateway)
+    else:
+        listStaticRoutes(apikey, organization['id'])
+
