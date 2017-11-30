@@ -45,9 +45,6 @@ def getJson(key, url):
         return False
 
     data = json.loads(r.text)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
 
     return data
 
@@ -116,7 +113,7 @@ def listStaticRoutes(key, orgid):
             for staticRoute in staticRoutes:
                 if verbose:
                     print "  staticRoute: %s" % (staticRoute)
-                print "%s,'%s',%s,%s" % (staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'])
+                print "%s,%s,'%s',%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'])
             if len(networkToList):
                 return
 
@@ -180,6 +177,10 @@ if len(apikey) < 1:
     sys.exit(3)
 
 organizations = getOrganizations(apikey)
+if organizations == False:
+    print "Unable to getOrganizations.  Wrong apikey?"
+    sys.exit(66)
+
 for organization in organizations:
     if verbose:
         print "Organization: %s" % (organization['name'])
