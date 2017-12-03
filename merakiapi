@@ -109,7 +109,8 @@ def listStaticRoutes(key, orgid):
         if verbose:
             print "Network: %s" % (network['name'])
 
-        if (len(networkToList) < 1) or (networkToList == network['name']):
+        if (len(networkToList) < 1) or \
+                (networkToList.lower() == network['name'].lower()):
             staticRoutes = getStaticRoutes(apikey, network['id'])
             for staticRoute in staticRoutes:
                 if verbose:
