@@ -159,7 +159,11 @@ if 'MERAKI_APIKEY' in os.environ:
 if 'MERAKI_ORGID' in os.environ:
     orgid = os.environ['MERAKI_ORGID']
 
-options, remainder = getopt.getopt(sys.argv[1:], 's:v', ['add', 'apikey=',
+if len(sys.argv) < 2:
+    print "Please provide a command: staticroutes cdp lldp"
+    sys.exit(1)
+
+options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
                                                          'gateway=',
                                                          'name=', 'network=',
                                                          'orgid=',
@@ -184,10 +188,7 @@ for opt, arg in options:
     elif opt in ('-v', '--verbose'):
         verbose = True
 
-if len(remainder)<1:
-    print "Please specify a command: staticroutes"
-    sys.exit(88)
-cmd = remainder[0]
+cmd = sys.argv[1]
 
 
 if os.path.isfile(configfile):
