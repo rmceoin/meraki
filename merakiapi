@@ -80,6 +80,10 @@ def getNetworks(key, orgid):
     url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
     return getJson(key, url)
 
+def getDevices(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/devices" % (networkId)
+    return getJson(key, url)
+
 def getStaticRoutes(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
     return getJson(key, url)
@@ -93,6 +97,10 @@ def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
     parameters['enabled'] = True
     parameters['active'] = 'always'
     return postJson(key, url, parameters)
+
+def getLldpCdp(key, networkId, serial):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/devices/%s/lldp_cdp?timespan=7200" % (networkId, serial)
+    return getJson(key, url)
 
 def findNetwork(apikey, orgid, networkName):
     networks = getNetworks(apikey, orgid)
@@ -117,6 +125,35 @@ def listStaticRoutes(key, orgid):
                 print "%s,%s,'%s',%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'])
             if len(networkToList):
                 return
+
+def listLldpCdpCmd():
+    print "In progress"
+    networks = getNetworks(apikey, orgid)
+    for network in networks:
+        if verbose:
+            print "Network: %s (%s)" % (network['name'], networkToList)
+
+        if len(networkToList) and (networkToList <> network['name']):
+            continue
+
+        devices = getDevices(apikey, network['id'])
+        for device in devices:
+            if verbose:
+                print " Device: %s" % (device['name'])
+            lldpCdp = getLldpCdp(apikey, network['id'], device['serial'])
+            print "lldpCdp=%s" % (lldpCdp)
+            if 'ports' not in lldpCdp:
+                continue
+            for port in lldpCdp['ports']:
+                if verbose:
+                    print "  port: %s" % (port)
+                for neighbor in lldpCdp['ports'][port]:
+                    print "  neighbor: %s" % (neighbor)
+#                print "%s,%s,'%s',%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'])
+            if len(networkToList):
+                return
+
+# {u'sourceMac': u'e0:55:3d:7b:1f:3c', u'ports': {u'port3': {u'lldp': {u'sourcePort': u'port3', u'portId': u'gi4', u'systemName': u'TDP-BRO-SW01'}, u'cdp': {u'sourcePort': u'port3', u'portId': u'gi4', u'deviceId': u'046c9dd6c325', u'address': u'10.15.44.253'}}}}
 
 def staticRoutesCmd():
     if addsubnet:
@@ -185,7 +222,7 @@ for opt, arg in options:
         verbose = True
 
 if len(remainder)<1:
-    print "Please specify a command: staticroutes"
+    print "Please specify a command: staticroutes, cdp, lldp"
     sys.exit(88)
 cmd = remainder[0]
 
@@ -218,6 +255,8 @@ if len(orgid) < 1:
 
 if cmd == "staticroutes":
     staticRoutesCmd()
+elif (cmd == "lldp") or (cmd == "cdp"):
+    listLldpCdpCmd()
 else:
     print "Unknown command: %s" % (cmd)
 
