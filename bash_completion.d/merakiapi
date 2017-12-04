@@ -1,0 +1,32 @@
+# file: merakiapi
+# merakiapi parameter-completion
+
+_merakiapi ()   #  By convention, the function name
+{                 #+ starts with an underscore.
+  local cur first commonoptions opts
+
+  COMPREPLY=()   # Array variable storing the possible completions.
+  cur=${COMP_WORDS[COMP_CWORD]}
+  first=${COMP_WORDS[1]}
+
+  commonoptions='--apikey --orgid --verbose'
+  opts="staticroutes cdp lldp"
+
+  case "$first" in
+    staticroutes)
+      COMPREPLY=( $( compgen -W "$commonoptions --add --name --network \
+                               --gateway --subnet" -- $cur ) )
+      return 0
+      ;;
+    lldp | cdp)
+      COMPREPLY=( $( compgen -W "$commonoptions" -- $cur ) )
+      return 0
+      ;;
+    *)
+      ;;
+  esac
+
+  COMPREPLY=( $( compgen -W "${opts}" -- ${cur}))
+  return 0
+}
+complete -F _merakiapi merakiapi
