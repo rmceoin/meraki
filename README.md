@@ -34,3 +34,11 @@ export MERAKI_ORGID="theorgid"
 ```
 3. The `--apikey` and `--orgid` options.
 
+## Add bash completion
+
+Assuming that `bash-completion` is installed, you can provide
+tab completion to the script with the following:
+```
+sudo cp bash_completion.d/merakiapi /etc/bash_completion.d/
+```
+
