@@ -8,7 +8,12 @@ Cisco Meraki tools written in Python
 pip install -r requirements.txt
 ```
 
-## API Key
+## API Key and Org Id
+
+The Meraki API key must be provided to the script.  Optionally you
+can also provide the organization id.  If no org id is provided, it
+will be looked up.  But if your key is associated with more than one
+organization, the script will exit.
 
 There are several ways to pass the Meraki API key to the scripts.
 
@@ -18,7 +23,14 @@ The YAML file should look like this:
 ```
 apikey:
     'your-api-key-here'
+orgid:
+    'the-org-id-here'
 ```
-2. Environmental variable MERAKI_APIKEY
-3. The `--apikey` option.
+2. Environmental variables MERAKI_APIKEY and MERAKI_ORGID.  For example, add this
+to the bottom of your `~/.bashrc`:
+```
+export MERAKI_APIKEY="yourapikey"
+export MERAKI_ORGID="theorgid"
+```
+3. The `--apikey` and `--orgid` options.
 
