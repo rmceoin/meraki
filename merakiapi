@@ -72,21 +72,39 @@ def postJson(key, url, parameters):
         return False
     return True
 
-def getOrganizations(key):
-    url = "https://dashboard.meraki.com/api/v0/organizations"
-    return getJson(key, url)
-
-def getNetworks(key, orgid):
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
-    return getJson(key, url)
+# Devices
 
 def getDevices(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/devices" % (networkId)
     return getJson(key, url)
 
+def getLldpCdp(key, networkId, serial):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/devices/%s/lldp_cdp?timespan=7200" % (networkId, serial)
+    return getJson(key, url)
+
+# MX L3 firewall
+
+def getL3FirewallRules(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/l3FirewallRules" % (networkId)
+    return getJson(key, url)
+
+# Networks
+
+def getNetworks(key, orgid):
+    url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
+    return getJson(key, url)
+
 def getSiteToSiteVpn(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/siteToSiteVpn" % (networkId)
     return getJson(key, url)
+
+# Organizations
+
+def getOrganizations(key):
+    url = "https://dashboard.meraki.com/api/v0/organizations"
+    return getJson(key, url)
+
+# Static routes
 
 def getStaticRoutes(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
@@ -101,10 +119,6 @@ def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
     parameters['enabled'] = True
     parameters['active'] = 'always'
     return postJson(key, url, parameters)
-
-def getLldpCdp(key, networkId, serial):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/devices/%s/lldp_cdp?timespan=7200" % (networkId, serial)
-    return getJson(key, url)
 
 def findNetwork(apikey, orgid, networkName):
     networks = getNetworks(apikey, orgid)
@@ -126,6 +140,23 @@ def listSiteToSiteVpn(key, orgid):
     siteToSiteVpn = getSiteToSiteVpn(key, network['id'])
     for subnet in siteToSiteVpn['subnets']:
         print "%s,%s" % (subnet['localSubnet'], subnet['useVpn'])
+
+def listL3FirewallRules(apikey, orgid):
+    if (len(networkToList) < 1):
+        print "Please specify a network."
+        return
+    network = findNetwork(apikey, orgid, networkToList)
+    if network is False:
+        print "Unable to find network: %s" % (networkToList)
+        return
+    l3FirewallRules = getL3FirewallRules(apikey, network['id'])
+    line = 1
+    for l3FirewallRule in l3FirewallRules:
+        print "%d,%s,%s,%s,%s,%s,%s,'%s',%s" % (line, l3FirewallRule['policy'], l3FirewallRule['protocol'], \
+            l3FirewallRule['srcCidr'], l3FirewallRule['srcPort'], \
+            l3FirewallRule['destCidr'], l3FirewallRule['destPort'], \
+            l3FirewallRule['comment'], l3FirewallRule['syslogEnabled'])
+        line += 1
 
 def listStaticRoutes(key, orgid):
     networks = getNetworks(apikey, orgid)
@@ -298,6 +329,8 @@ elif cmd == "networks":
     listNetworks(apikey, orgid)
 elif cmd == "organizations":
     listOrganizations(apikey)
+elif cmd == "l3firewallrules":
+    listL3FirewallRules(apikey, orgid)
 elif cmd == "sitetositevpn":
     listSiteToSiteVpn(apikey, orgid)
 else:
