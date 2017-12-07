@@ -1,7 +1,9 @@
 # Meraki
 Cisco Meraki tools written in Python
 
-# Setup environment for the scripts
+Uses the Meraki [Dashboard API](https://dashboard.meraki.com/api_docs).
+
+# Setup environment for the script
 
 ## Make sure Python libraries are installed
 ```

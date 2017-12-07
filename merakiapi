@@ -84,6 +84,10 @@ def getDevices(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/devices" % (networkId)
     return getJson(key, url)
 
+def getSiteToSiteVpn(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/siteToSiteVpn" % (networkId)
+    return getJson(key, url)
+
 def getStaticRoutes(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
     return getJson(key, url)
@@ -107,9 +111,21 @@ def findNetwork(apikey, orgid, networkName):
     for network in networks:
         if verbose:
             print "Network: %s" % (network['name'])
-        if network['name'] == networkName:
+        if network['name'].lower() == networkName.lower():
             return network
     return False
+
+def listSiteToSiteVpn(key, orgid):
+    if (len(networkToList) < 1):
+        print "Please specify a network."
+        return
+    network = findNetwork(apikey, orgid, networkToList)
+    if network is False:
+        print "Unable to find network: %s" % (networkToList)
+        return
+    siteToSiteVpn = getSiteToSiteVpn(key, network['id'])
+    for subnet in siteToSiteVpn['subnets']:
+        print "%s,%s" % (subnet['localSubnet'], subnet['useVpn'])
 
 def listStaticRoutes(key, orgid):
     networks = getNetworks(apikey, orgid)
@@ -282,6 +298,8 @@ elif cmd == "networks":
     listNetworks(apikey, orgid)
 elif cmd == "organizations":
     listOrganizations(apikey)
+elif cmd == "sitetositevpn":
+    listSiteToSiteVpn(apikey, orgid)
 else:
     print "Unknown command: %s" % (cmd)
 
