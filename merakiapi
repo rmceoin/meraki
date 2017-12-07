@@ -127,6 +127,14 @@ def listStaticRoutes(key, orgid):
             if len(networkToList):
                 return
 
+def listOrganizations():
+    organizations = getOrganizations(apikey)
+    if organizations == False:
+        print "Unable to getOrganizations.  Wrong apikey?"
+        return
+    for organization in organizations:
+        print "%s,'%s'" % (organization['id'], organization['name'])
+
 def listLldpCdpCmd():
     print "In progress"
     networks = getNetworks(apikey, orgid)
@@ -240,24 +248,30 @@ if len(apikey) < 1:
     print "Missing apikey"
     sys.exit(3)
 
-organizations = getOrganizations(apikey)
-if organizations == False:
-    print "Unable to getOrganizations.  Wrong apikey?"
-    sys.exit(66)
-
-if len(organizations) > 1:
-    print "APIKEY is associated with more than one orgid.  Please specify only one with --orgid."
-    for organization in organizations:
-        print "%s,'%s'" % (organization['id'], organization['name'])
-    sys.exit(3)
-
 if len(orgid) < 1:
-    orgid = organizations[0]['id']
+    organizations = getOrganizations(apikey)
+    if organizations == False:
+        print "Unable to getOrganizations.  Wrong apikey?"
+        sys.exit(66)
+
+    if len(organizations) > 1:
+        print "APIKEY is associated with more than one orgid.  Please specify only one with --orgid."
+        for organization in organizations:
+            print "%s,'%s'" % (organization['id'], organization['name'])
+        sys.exit(3)
+
+    if len(orgid) < 1:
+        orgid = organizations[0]['id']
+    else:
+        print "Unable to fetch orgid."
+        sys.exit(4)
 
 if cmd == "staticroutes":
     staticRoutesCmd()
 elif (cmd == "lldp") or (cmd == "cdp"):
     listLldpCdpCmd()
+elif cmd == "organizations":
+    listOrganizations()
 else:
     print "Unknown command: %s" % (cmd)
 
