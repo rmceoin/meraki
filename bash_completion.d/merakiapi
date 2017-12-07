@@ -10,9 +10,13 @@ _merakiapi ()   #  By convention, the function name
   first=${COMP_WORDS[1]}
 
   commonoptions='--apikey --orgid --verbose'
-  opts="staticroutes cdp lldp organizations networks"
+  opts="sitetositevpn staticroutes cdp lldp organizations networks"
 
   case "$first" in
+    sitetositevpn)
+      COMPREPLY=( $( compgen -W "$commonoptions --subnet" -- $cur ) )
+      return 0
+      ;;
     staticroutes)
       COMPREPLY=( $( compgen -W "$commonoptions --add --name --network \
                                --gateway --subnet" -- $cur ) )
