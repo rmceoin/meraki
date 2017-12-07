@@ -127,17 +127,25 @@ def listStaticRoutes(key, orgid):
             if len(networkToList):
                 return
 
-def listOrganizations():
-    organizations = getOrganizations(apikey)
+def listOrganizations(key):
+    organizations = getOrganizations(key)
     if organizations == False:
         print "Unable to getOrganizations.  Wrong apikey?"
         return
     for organization in organizations:
         print "%s,'%s'" % (organization['id'], organization['name'])
 
-def listLldpCdpCmd():
+def listNetworks(key, orgid):
+    networks = getNetworks(key, orgid)
+    if networks == False:
+        print "Unable to getNetworks.  Wrong apikey?"
+        return
+    for network in networks:
+        print "%s" % (network['name'])
+
+def listLldpCdpCmd(key, orgid):
     print "In progress"
-    networks = getNetworks(apikey, orgid)
+    networks = getNetworks(key, orgid)
     for network in networks:
         if verbose:
             print "Network: %s (%s)" % (network['name'], networkToList)
@@ -164,7 +172,7 @@ def listLldpCdpCmd():
 
 # {u'sourceMac': u'e0:55:3d:7b:1f:3c', u'ports': {u'port3': {u'lldp': {u'sourcePort': u'port3', u'portId': u'gi4', u'systemName': u'TDP-BRO-SW01'}, u'cdp': {u'sourcePort': u'port3', u'portId': u'gi4', u'deviceId': u'046c9dd6c325', u'address': u'10.15.44.253'}}}}
 
-def staticRoutesCmd():
+def staticRoutesCmd(apikey, orgid):
     if addsubnet:
         if len(subnet) < 1:
             print "Missing subnet"
@@ -267,11 +275,13 @@ if len(orgid) < 1:
         sys.exit(4)
 
 if cmd == "staticroutes":
-    staticRoutesCmd()
+    staticRoutesCmd(apikey, orgid)
 elif (cmd == "lldp") or (cmd == "cdp"):
-    listLldpCdpCmd()
+    listLldpCdpCmd(apikey, orgid)
+elif cmd == "networks":
+    listNetworks(apikey, orgid)
 elif cmd == "organizations":
-    listOrganizations()
+    listOrganizations(apikey)
 else:
     print "Unknown command: %s" % (cmd)
 
