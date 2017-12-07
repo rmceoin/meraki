@@ -10,7 +10,7 @@ _merakiapi ()   #  By convention, the function name
   first=${COMP_WORDS[1]}
 
   commonoptions='--apikey --orgid --verbose'
-  opts="staticroutes cdp lldp"
+  opts="staticroutes cdp lldp organizations"
 
   case "$first" in
     staticroutes)
