@@ -98,6 +98,13 @@ def getSiteToSiteVpn(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/siteToSiteVpn" % (networkId)
     return getJson(key, url)
 
+def getSiteToSiteVpnSubnetsAsHash(key, networkId):
+    siteToSiteVpns = getSiteToSiteVpn(key, networkId)
+    hashed = {}
+    for subnet in siteToSiteVpns['subnets']:
+        hashed[subnet['localSubnet']] = subnet
+    return hashed
+
 # Organizations
 
 def getOrganizations(key):
@@ -167,10 +174,19 @@ def listStaticRoutes(key, orgid):
         if (len(networkToList) < 1) or \
                 (networkToList.lower() == network['name'].lower()):
             staticRoutes = getStaticRoutes(apikey, network['id'])
+            siteToSiteVpnSubnets = getSiteToSiteVpnSubnetsAsHash(key, network['id'])
             for staticRoute in staticRoutes:
                 if verbose:
                     print "  staticRoute: %s" % (staticRoute)
-                print "%s,%s,'%s',%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'])
+                invpn = ''
+                if staticRoute['subnet'] in siteToSiteVpnSubnets:
+                    useVpn = siteToSiteVpnSubnets[staticRoute['subnet']]['useVpn']
+                    if useVpn:
+                        invpn = 'yes'
+                    else:
+                        invpn = 'no'
+
+                print "%s,%s,'%s',%s,%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'], invpn)
             if len(networkToList):
                 return
 
