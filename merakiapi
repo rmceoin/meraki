@@ -19,6 +19,7 @@ configfile = '/usr/local/etc/meraki.yaml'
 addsubnet = False
 subnet = ''
 subnetname = ''
+device = ''
 gateway = ''
 
 def getJson(key, url):
@@ -72,6 +73,12 @@ def postJson(key, url, parameters):
         return False
     return True
 
+# Clients
+
+def getClients(key, deviceId):
+    url = "https://dashboard.meraki.com/api/v0/devices/%s/clients?timespan=86400" % (deviceId)
+    return getJson(key, url)
+
 # Devices
 
 def getDevices(key, networkId):
@@ -101,8 +108,9 @@ def getSiteToSiteVpn(key, networkId):
 def getSiteToSiteVpnSubnetsAsHash(key, networkId):
     siteToSiteVpns = getSiteToSiteVpn(key, networkId)
     hashed = {}
-    for subnet in siteToSiteVpns['subnets']:
-        hashed[subnet['localSubnet']] = subnet
+    if siteToSiteVpns and ('subnets' in siteToSiteVpns):
+        for subnet in siteToSiteVpns['subnets']:
+            hashed[subnet['localSubnet']] = subnet
     return hashed
 
 # Organizations
@@ -126,6 +134,22 @@ def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
     parameters['enabled'] = True
     parameters['active'] = 'always'
     return postJson(key, url, parameters)
+
+def findDevice(apikey, orgid, networkName, deviceName):
+    network = findNetwork(apikey, orgid, networkName)
+    if network is False:
+        print "Unable to find network: %s" % (networkName)
+        return False
+    devices = getDevices(apikey, network['id'])
+    if devices is False:
+        print "Unable to get devices: %s" % (networkName)
+        return False
+    for device in devices:
+        if verbose:
+            print "Testing device %s, %s" % (device, deviceName)
+        if device['name'].lower() == deviceName.lower():
+            return device
+    return False
 
 def findNetwork(apikey, orgid, networkName):
     networks = getNetworks(apikey, orgid)
@@ -198,6 +222,57 @@ def listOrganizations(key):
     for organization in organizations:
         print "%s,'%s'" % (organization['id'], organization['name'])
 
+def listClients(apikey, orgid, networkName, deviceName):
+    if len(networkName)<1:
+        print "Please provide a network."
+        return False
+    if len(deviceName)<1:
+        network = findNetwork(apikey, orgid, networkName)
+        if network == False:
+            print "Cannot find network: " % (networkName)
+            return False
+        devices = getDevices(apikey, network['id'])
+        if devices == False:
+            print "Unable to getDevices.  Wrong apikey?"
+            return False
+
+        if len(devices)>1:
+            print "More than one device.  Please specify a device."
+            return False
+        device = devices[0]
+    else:
+        device = findDevice(apikey, orgid, networkName, deviceName)
+        if device == False:
+            print "Unable to find device: %s" % (deviceName)
+            return False
+
+    clients = getClients(apikey, device['serial'])
+    # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
+    for client in clients:
+        print "%s,%s,%s,%d,%d" % (client['description'],client['ip'], client['mac'], \
+                client['usage']['recv'], client['usage']['sent'])
+    return True
+
+def listDevices(apikey, orgid):
+    if len(networkToList)<1:
+        print "Please provide a network."
+        return
+    network = findNetwork(apikey, orgid, networkToList)
+    if network == False:
+        print "Cannot find network: " % (networkToList)
+    devices = getDevices(apikey, network['id'])
+    if devices == False:
+        print "Unable to getDevices.  Wrong apikey?"
+        return
+    for device in devices:
+        if verbose:
+            print "device: %s" % (device)
+        wan1Ip = ''
+        if 'wan1Ip' in device:
+            wan1Ip = device['wan1Ip']
+        print "%s,%s,%s,%s,%s" % (device['name'], device['model'], \
+                device['serial'], device['mac'], wan1Ip)
+
 def listNetworks(key, orgid):
     networks = getNetworks(key, orgid)
     if networks == False:
@@ -229,11 +304,8 @@ def listLldpCdpCmd(key, orgid):
                     print "  port: %s" % (port)
                 for neighbor in lldpCdp['ports'][port]:
                     print "  neighbor: %s" % (neighbor)
-#                print "%s,%s,'%s',%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'])
             if len(networkToList):
                 return
-
-# {u'sourceMac': u'e0:55:3d:7b:1f:3c', u'ports': {u'port3': {u'lldp': {u'sourcePort': u'port3', u'portId': u'gi4', u'systemName': u'TDP-BRO-SW01'}, u'cdp': {u'sourcePort': u'port3', u'portId': u'gi4', u'deviceId': u'046c9dd6c325', u'address': u'10.15.44.253'}}}}
 
 def staticRoutesCmd(apikey, orgid):
     if addsubnet:
@@ -277,10 +349,11 @@ if 'MERAKI_ORGID' in os.environ:
     orgid = os.environ['MERAKI_ORGID']
 
 if len(sys.argv) < 2:
-    print "Please provide a command: staticroutes cdp lldp"
+    print "Please provide a command: clients devices networks staticroutes cdp lldp"
     sys.exit(1)
 
 options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
+                                                         'device=',
                                                          'gateway=',
                                                          'name=', 'network=',
                                                          'orgid=',
@@ -292,6 +365,8 @@ for opt, arg in options:
         addsubnet = True
     elif opt in ('--apikey'):
         apikey = arg
+    elif opt in ('--device'):
+        device = arg
     elif opt in ('--gateway'):
         gateway = arg
     elif opt in ('--name'):
@@ -341,6 +416,10 @@ if cmd == "staticroutes":
     staticRoutesCmd(apikey, orgid)
 elif (cmd == "lldp") or (cmd == "cdp"):
     listLldpCdpCmd(apikey, orgid)
+elif cmd == "clients":
+    listClients(apikey, orgid, networkToList, device)
+elif cmd == "devices":
+    listDevices(apikey, orgid)
 elif cmd == "networks":
     listNetworks(apikey, orgid)
 elif cmd == "organizations":
