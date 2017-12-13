@@ -10,7 +10,7 @@ _merakiapi ()   #  By convention, the function name
   first=${COMP_WORDS[1]}
 
   commonoptions='--apikey --orgid --verbose'
-  opts="clients devices l3firewallrules sitetositevpn staticroutes cdp lldp organizations networks"
+  opts="cdp clients devices l3firewallrules lldp lldpcdp sitetositevpn staticroutes organizations networks vlans"
 
   case "$first" in
     clients)
@@ -21,7 +21,7 @@ _merakiapi ()   #  By convention, the function name
       COMPREPLY=( $( compgen -W "$commonoptions --network" -- $cur ) )
       return 0
       ;;
-    sitetositevpn)
+    sitetositevpn | vlans)
       COMPREPLY=( $( compgen -W "$commonoptions --network" -- $cur ) )
       return 0
       ;;

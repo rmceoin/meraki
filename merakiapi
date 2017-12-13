@@ -38,6 +38,10 @@ def getJson(key, url):
         print "r.status_code = %s" % (r.status_code)
         print "r.text = %s" % (r.text)
 
+    if r.status_code == 400:
+        if verbose:
+            print "400 Bad request: %s : %s" % (url, r.text)
+        return False
     if r.status_code == 404:
         print "404 Not found: %s" % (url)
         return False
@@ -123,6 +127,12 @@ def getOrganizations(key):
 
 def getStaticRoutes(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
+    return getJson(key, url)
+
+# VLANs
+
+def getVlans(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/vlans" % (networkId)
     return getJson(key, url)
 
 def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
@@ -318,6 +328,22 @@ def listLldpCdpCmd(key, orgid, networkName, whichType):
             if len(networkToList):
                 return
 
+def listVlans(apikey, orgid, networkName):
+    networks = getNetworks(apikey, orgid)
+    for network in networks:
+        if verbose:
+            print "Network: %s (%s)" % (network['name'], networkName)
+
+        if len(networkName) and (networkName.lower() <> network['name'].lower()):
+            continue
+
+        vlans = getVlans(apikey, network['id'])
+        if vlans:
+            for vlan in vlans:
+                if verbose:
+                    print " vlan: %s" % (vlan['name'])
+                print "%s,%s,%s,'%s'" % (network['name'], vlan['subnet'], vlan['applianceIp'], vlan['name'])
+
 def staticRoutesCmd(apikey, orgid):
     if addsubnet:
         if len(subnet) < 1:
@@ -360,7 +386,7 @@ if 'MERAKI_ORGID' in os.environ:
     orgid = os.environ['MERAKI_ORGID']
 
 if len(sys.argv) < 2:
-    print "Please provide a command: clients devices networks staticroutes cdp lldp"
+    print "Please provide a command: cdp clients devices lldp lldpcdp networks sitetositevpn staticroutes vlans"
     sys.exit(1)
 
 options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
@@ -439,6 +465,8 @@ elif cmd == "l3firewallrules":
     listL3FirewallRules(apikey, orgid)
 elif cmd == "sitetositevpn":
     listSiteToSiteVpn(apikey, orgid)
+elif cmd == "vlans":
+    listVlans(apikey, orgid, networkToList)
 else:
     print "Unknown command: %s" % (cmd)
 
