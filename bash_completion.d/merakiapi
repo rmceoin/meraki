@@ -30,8 +30,8 @@ _merakiapi ()   #  By convention, the function name
                                --gateway --subnet" -- $cur ) )
       return 0
       ;;
-    lldp | cdp)
-      COMPREPLY=( $( compgen -W "$commonoptions" -- $cur ) )
+    lldp | cdp | lldpcdp)
+      COMPREPLY=( $( compgen -W "$commonoptions --network" -- $cur ) )
       return 0
       ;;
     *)

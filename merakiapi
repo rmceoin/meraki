@@ -249,7 +249,7 @@ def listClients(apikey, orgid, networkName, deviceName):
     clients = getClients(apikey, device['serial'])
     # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
     for client in clients:
-        print "%s,%s,%s,%d,%d" % (client['description'],client['ip'], client['mac'], \
+        print "%s,%s,%s,%s,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
                 client['usage']['recv'], client['usage']['sent'])
     return True
 
@@ -281,14 +281,13 @@ def listNetworks(key, orgid):
     for network in networks:
         print "%s" % (network['name'])
 
-def listLldpCdpCmd(key, orgid):
-    print "In progress"
+def listLldpCdpCmd(key, orgid, networkName, whichType):
     networks = getNetworks(key, orgid)
     for network in networks:
         if verbose:
-            print "Network: %s (%s)" % (network['name'], networkToList)
+            print "Network: %s (%s)" % (network['name'], networkName)
 
-        if len(networkToList) and (networkToList <> network['name']):
+        if len(networkName) and (networkName.lower() <> network['name'].lower()):
             continue
 
         devices = getDevices(apikey, network['id'])
@@ -296,14 +295,26 @@ def listLldpCdpCmd(key, orgid):
             if verbose:
                 print " Device: %s" % (device['name'])
             lldpCdp = getLldpCdp(apikey, network['id'], device['serial'])
-            print "lldpCdp=%s" % (lldpCdp)
             if 'ports' not in lldpCdp:
                 continue
+#            {u'wan0': {u'cdp': {u'sourcePort': u'wan0', u'portId': u'TenGigabitEthernet1/1', u'deviceId': u'scng-riv-sw3.axxm.net', u'address': u'10.81.0.11'}}
+#                    {u'sourcePort': u'port3', u'portId': u'Gi3/0/12', u'managementAddress': u'10.20.100.1', u'systemName': u'LANG-TOR-DC-STK1.axxm.net'}
             for port in lldpCdp['ports']:
-                if verbose:
-                    print "  port: %s" % (port)
-                for neighbor in lldpCdp['ports'][port]:
-                    print "  neighbor: %s" % (neighbor)
+                for neighborType in lldpCdp['ports'][port]:
+                    neighbor = lldpCdp['ports'][port][neighborType]
+                    ip = ''
+                    if 'address' in neighbor:
+                        ip = neighbor['address']
+                    elif 'managementAddress' in neighbor:
+                        ip = neighbor['managementAddress']
+                    name = ''
+                    if 'deviceId' in neighbor:
+                        name = neighbor['deviceId']
+                    elif 'systemName' in neighbor:
+                        name = neighbor['systemName']
+
+                    print "%s,%s,%s,%s,%s" % (network['name'],neighbor['sourcePort'],\
+                            neighbor['portId'], name, ip)
             if len(networkToList):
                 return
 
@@ -414,8 +425,8 @@ if len(orgid) < 1:
 
 if cmd == "staticroutes":
     staticRoutesCmd(apikey, orgid)
-elif (cmd == "lldp") or (cmd == "cdp"):
-    listLldpCdpCmd(apikey, orgid)
+elif (cmd == "cdp") or (cmd == "lldp") or (cmd == "lldpcdp"):
+    listLldpCdpCmd(apikey, orgid, networkToList, cmd)
 elif cmd == "clients":
     listClients(apikey, orgid, networkToList, device)
 elif cmd == "devices":

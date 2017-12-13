@@ -34,6 +34,11 @@ to the bottom of your `~/.bashrc`:
 export MERAKI_APIKEY="yourapikey"
 export MERAKI_ORGID="theorgid"
 ```
+If on Windows:
+```
+setx MERAKI_APIKEY "yourapikey"
+setx MERAKI_ORGID "theorgid"
+```
 3. The `--apikey` and `--orgid` options.
 
 ## Add bash completion
