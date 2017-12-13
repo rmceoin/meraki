@@ -49,3 +49,35 @@ tab completion to the script with the following:
 sudo cp bash_completion.d/merakiapi /etc/bash_completion.d/
 ```
 
+## Commands
+
+Use the main `merakiapi` script to run various commands.
+
+- cdp
+- devices
+- lldp
+- organizations
+- staticroutes
+- clients
+- l3firewallrules
+- networks
+- sitetositevpn
+
+For example:
+
+```
+# merakiapi networks
+MyNetwork1
+MyNetwork2
+MyNetwork3
+
+# merakiapi staticroutes --network MyNetwork1
+MyNetwork1,10.1.0.0/16,'Downstream main network',10.1.1.1,True,yes
+MyNetwork1,10.2.8.0/27,'Users',10.1.1.1,True,yes
+
+# merakiapi clients --network MyNetwork1
+MyNetwork1,LOC-EDI-LP2457,10.2.8.58,78:c9:86:ab:43:64,137,9
+MyNetwork1,DudepleWatch,10.2.8.8,38:79:86:6b:a6:41,1,0
+MyNetwork1,LOC-EDI-LP2457,10.2.8.6,4c:72:75:a2:ac:c5,10711,338597
+```
+
