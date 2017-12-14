@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #
 # curl -s -L -H "X-Cisco-Meraki-API-Key: $apikey" -X GET -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
@@ -31,22 +31,22 @@ def getJson(key, url):
     try:
         r = requests.get(url, headers=headers)
     except requests.exceptions.RequestException as e:
-        print "Error: %s" % (e)
+        print("Error: %s" % (e))
         return False
 
     if verbose:
-        print "r.status_code = %s" % (r.status_code)
-        print "r.text = %s" % (r.text)
+        print("r.status_code = %s" % (r.status_code))
+        print("r.text = %s" % (r.text))
 
     if r.status_code == 400:
         if verbose:
-            print "400 Bad request: %s : %s" % (url, r.text)
+            print("400 Bad request: %s : %s" % (url, r.text))
         return False
     if r.status_code == 404:
-        print "404 Not found: %s" % (url)
+        print("404 Not found: %s" % (url))
         return False
     if r.status_code != 200:
-        print "Error: %s - %s" % (r.status_code, r.text)
+        print("Error: %s - %s" % (r.status_code, r.text))
         return False
 
     data = json.loads(r.text)
@@ -62,18 +62,18 @@ def postJson(key, url, parameters):
     try:
         r = requests.post(url, json=parameters, headers=headers)
     except requests.exceptions.RequestException as e:
-        print "Error: %s" % (e)
+        print("Error: %s" % (e))
         return False
 
     if verbose:
-        print "r.status_code = %s" % (r.status_code)
-        print "r.text = %s" % (r.text)
+        print("r.status_code = %s" % (r.status_code))
+        print("r.text = %s" % (r.text))
 
     if r.status_code == 404:
-        print "404 Not found: %s" % (url)
+        print("404 Not found: %s" % (url))
         return False
     if r.status_code != 201:
-        print "Error: %s - %s" % (r.status_code, r.text)
+        print("Error: %s - %s" % (r.status_code, r.text))
         return False
     return True
 
@@ -148,15 +148,15 @@ def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
 def findDevice(apikey, orgid, networkName, deviceName):
     network = findNetwork(apikey, orgid, networkName)
     if network is False:
-        print "Unable to find network: %s" % (networkName)
+        print("Unable to find network: %s" % (networkName))
         return False
     devices = getDevices(apikey, network['id'])
     if devices is False:
-        print "Unable to get devices: %s" % (networkName)
+        print("Unable to get devices: %s" % (networkName))
         return False
     for device in devices:
         if verbose:
-            print "Testing device %s, %s" % (device, deviceName)
+            print("Testing device %s, %s" % (device, deviceName))
         if device['name'].lower() == deviceName.lower():
             return device
     return False
@@ -165,45 +165,45 @@ def findNetwork(apikey, orgid, networkName):
     networks = getNetworks(apikey, orgid)
     for network in networks:
         if verbose:
-            print "Network: %s" % (network['name'])
+            print("Network: %s" % (network['name']))
         if network['name'].lower() == networkName.lower():
             return network
     return False
 
 def listSiteToSiteVpn(key, orgid):
     if (len(networkToList) < 1):
-        print "Please specify a network."
+        print("Please specify a network.")
         return
     network = findNetwork(apikey, orgid, networkToList)
     if network is False:
-        print "Unable to find network: %s" % (networkToList)
+        print("Unable to find network: %s" % (networkToList))
         return
     siteToSiteVpn = getSiteToSiteVpn(key, network['id'])
     for subnet in siteToSiteVpn['subnets']:
-        print "%s,%s" % (subnet['localSubnet'], subnet['useVpn'])
+        print("%s,%s" % (subnet['localSubnet'], subnet['useVpn']))
 
 def listL3FirewallRules(apikey, orgid):
     if (len(networkToList) < 1):
-        print "Please specify a network."
+        print("Please specify a network.")
         return
     network = findNetwork(apikey, orgid, networkToList)
     if network is False:
-        print "Unable to find network: %s" % (networkToList)
+        print("Unable to find network: %s" % (networkToList))
         return
     l3FirewallRules = getL3FirewallRules(apikey, network['id'])
     line = 1
     for l3FirewallRule in l3FirewallRules:
-        print "%d,%s,%s,%s,%s,%s,%s,'%s',%s" % (line, l3FirewallRule['policy'], l3FirewallRule['protocol'], \
+        print("%d,%s,%s,%s,%s,%s,%s,'%s',%s" % (line, l3FirewallRule['policy'], l3FirewallRule['protocol'], \
             l3FirewallRule['srcCidr'], l3FirewallRule['srcPort'], \
             l3FirewallRule['destCidr'], l3FirewallRule['destPort'], \
-            l3FirewallRule['comment'], l3FirewallRule['syslogEnabled'])
+            l3FirewallRule['comment'], l3FirewallRule['syslogEnabled']))
         line += 1
 
 def listStaticRoutes(key, orgid):
     networks = getNetworks(apikey, orgid)
     for network in networks:
         if verbose:
-            print "Network: %s" % (network['name'])
+            print("Network: %s" % (network['name']))
 
         if (len(networkToList) < 1) or \
                 (networkToList.lower() == network['name'].lower()):
@@ -211,7 +211,7 @@ def listStaticRoutes(key, orgid):
             siteToSiteVpnSubnets = getSiteToSiteVpnSubnetsAsHash(key, network['id'])
             for staticRoute in staticRoutes:
                 if verbose:
-                    print "  staticRoute: %s" % (staticRoute)
+                    print("  staticRoute: %s" % (staticRoute))
                 invpn = ''
                 if staticRoute['subnet'] in siteToSiteVpnSubnets:
                     useVpn = siteToSiteVpnSubnets[staticRoute['subnet']]['useVpn']
@@ -220,90 +220,90 @@ def listStaticRoutes(key, orgid):
                     else:
                         invpn = 'no'
 
-                print "%s,%s,'%s',%s,%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'], invpn)
+                print("%s,%s,'%s',%s,%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'], invpn))
             if len(networkToList):
                 return
 
 def listOrganizations(key):
     organizations = getOrganizations(key)
     if organizations == False:
-        print "Unable to getOrganizations.  Wrong apikey?"
+        print("Unable to getOrganizations.  Wrong apikey?")
         return
     for organization in organizations:
-        print "%s,'%s'" % (organization['id'], organization['name'])
+        print("%s,'%s'" % (organization['id'], organization['name']))
 
 def listClients(apikey, orgid, networkName, deviceName):
     if len(networkName)<1:
-        print "Please provide a network."
+        print("Please provide a network.")
         return False
     if len(deviceName)<1:
         network = findNetwork(apikey, orgid, networkName)
         if network == False:
-            print "Cannot find network: " % (networkName)
+            print("Cannot find network: " % (networkName))
             return False
         devices = getDevices(apikey, network['id'])
         if devices == False:
-            print "Unable to getDevices.  Wrong apikey?"
+            print("Unable to getDevices.  Wrong apikey?")
             return False
 
         if len(devices)>1:
-            print "More than one device.  Please specify a device."
+            print("More than one device.  Please specify a device.")
             return False
         device = devices[0]
     else:
         device = findDevice(apikey, orgid, networkName, deviceName)
         if device == False:
-            print "Unable to find device: %s" % (deviceName)
+            print("Unable to find device: %s" % (deviceName))
             return False
 
     clients = getClients(apikey, device['serial'])
     # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
     for client in clients:
-        print "%s,%s,%s,%s,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
-                client['usage']['recv'], client['usage']['sent'])
+        print("%s,%s,%s,%s,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
+                client['usage']['recv'], client['usage']['sent']))
     return True
 
 def listDevices(apikey, orgid):
     if len(networkToList)<1:
-        print "Please provide a network."
+        print("Please provide a network.")
         return
     network = findNetwork(apikey, orgid, networkToList)
     if network == False:
-        print "Cannot find network: " % (networkToList)
+        print("Cannot find network: " % (networkToList))
     devices = getDevices(apikey, network['id'])
     if devices == False:
-        print "Unable to getDevices.  Wrong apikey?"
+        print("Unable to getDevices.  Wrong apikey?")
         return
     for device in devices:
         if verbose:
-            print "device: %s" % (device)
+            print("device: %s" % (device))
         wan1Ip = ''
         if 'wan1Ip' in device:
             wan1Ip = device['wan1Ip']
-        print "%s,%s,%s,%s,%s" % (device['name'], device['model'], \
-                device['serial'], device['mac'], wan1Ip)
+        print("%s,%s,%s,%s,%s" % (device['name'], device['model'], \
+                device['serial'], device['mac'], wan1Ip))
 
 def listNetworks(key, orgid):
     networks = getNetworks(key, orgid)
     if networks == False:
-        print "Unable to getNetworks.  Wrong apikey?"
+        print("Unable to getNetworks.  Wrong apikey?")
         return
     for network in networks:
-        print "%s" % (network['name'])
+        print("%s" % (network['name']))
 
 def listLldpCdpCmd(key, orgid, networkName, whichType):
     networks = getNetworks(key, orgid)
     for network in networks:
         if verbose:
-            print "Network: %s (%s)" % (network['name'], networkName)
+            print("Network: %s (%s)" % (network['name'], networkName))
 
-        if len(networkName) and (networkName.lower() <> network['name'].lower()):
+        if len(networkName) and (networkName.lower() != network['name'].lower()):
             continue
 
         devices = getDevices(apikey, network['id'])
         for device in devices:
             if verbose:
-                print " Device: %s" % (device['name'])
+                print(" Device: %s" % (device['name']))
             lldpCdp = getLldpCdp(apikey, network['id'], device['serial'])
             if 'ports' not in lldpCdp:
                 continue
@@ -323,8 +323,8 @@ def listLldpCdpCmd(key, orgid, networkName, whichType):
                     elif 'systemName' in neighbor:
                         name = neighbor['systemName']
 
-                    print "%s,%s,%s,%s,%s" % (network['name'],neighbor['sourcePort'],\
-                            neighbor['portId'], name, ip)
+                    print("%s,%s,%s,%s,%s" % (network['name'],neighbor['sourcePort'],\
+                            neighbor['portId'], name, ip))
             if len(networkToList):
                 return
 
@@ -332,50 +332,50 @@ def listVlans(apikey, orgid, networkName):
     networks = getNetworks(apikey, orgid)
     for network in networks:
         if verbose:
-            print "Network: %s (%s)" % (network['name'], networkName)
+            print("Network: %s (%s)" % (network['name'], networkName))
 
-        if len(networkName) and (networkName.lower() <> network['name'].lower()):
+        if len(networkName) and (networkName.lower() != network['name'].lower()):
             continue
 
         vlans = getVlans(apikey, network['id'])
         if vlans:
             for vlan in vlans:
                 if verbose:
-                    print " vlan: %s" % (vlan['name'])
-                print "%s,%s,%s,'%s'" % (network['name'], vlan['subnet'], vlan['applianceIp'], vlan['name'])
+                    print(" vlan: %s" % (vlan['name']))
+                print("%s,%s,%s,'%s'" % (network['name'], vlan['subnet'], vlan['applianceIp'], vlan['name']))
 
 def staticRoutesCmd(apikey, orgid):
     if addsubnet:
         if len(subnet) < 1:
-            print "Missing subnet"
+            print("Missing subnet")
             sys.exit(5)
         p = re.compile('\d+\.\d+\.\d+\.\d+/\d+')
         if not p.match(subnet):
-            print "Bad subnet format: %s" % (subnet)
+            print("Bad subnet format: %s" % (subnet))
             sys.exit(6)
 
         if len(subnetname) < 1:
-            print "Missing subnet name"
+            print("Missing subnet name")
             sys.exit(5)
 
         if len(gateway) < 1:
-            print "Missing gateway"
+            print("Missing gateway")
             sys.exit(5)
         p = re.compile('\d+\.\d+\.\d+\.\d+')
         if not p.match(gateway):
-            print "Bad gateway format: %s" % (gateway)
+            print("Bad gateway format: %s" % (gateway))
             sys.exit(61)
 
         if len(networkToList) < 1:
-            print "Missing network"
+            print("Missing network")
             sys.exit(5)
 
         network = findNetwork(apikey, orgid, networkToList)
         if network == False:
-            print "Cannot find network: " % (networkToList)
+            print("Cannot find network: " % (networkToList))
             sys.exit(7)
         if verbose:
-            print " Network id = %s" % (network['id'])
+            print(" Network id = %s" % (network['id']))
         addStaticRoute(apikey, network['id'], subnet, subnetname, gateway)
     else:
         listStaticRoutes(apikey, orgid)
@@ -386,7 +386,7 @@ if 'MERAKI_ORGID' in os.environ:
     orgid = os.environ['MERAKI_ORGID']
 
 if len(sys.argv) < 2:
-    print "Please provide a command: cdp clients devices lldp lldpcdp networks sitetositevpn staticroutes vlans"
+    print("Please provide a command: cdp clients devices lldp lldpcdp networks sitetositevpn staticroutes vlans")
     sys.exit(1)
 
 options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
@@ -428,25 +428,25 @@ if os.path.isfile(configfile):
             orgid = configuration['orgid']
 
 if len(apikey) < 1:
-    print "Missing apikey"
+    print("Missing apikey")
     sys.exit(3)
 
 if len(orgid) < 1:
     organizations = getOrganizations(apikey)
     if organizations == False:
-        print "Unable to getOrganizations.  Wrong apikey?"
+        print("Unable to getOrganizations.  Wrong apikey?")
         sys.exit(66)
 
     if len(organizations) > 1:
-        print "APIKEY is associated with more than one orgid.  Please specify only one with --orgid."
+        print("APIKEY is associated with more than one orgid.  Please specify only one with --orgid.")
         for organization in organizations:
-            print "%s,'%s'" % (organization['id'], organization['name'])
+            print("%s,'%s'" % (organization['id'], organization['name']))
         sys.exit(3)
 
     if len(orgid) < 1:
         orgid = organizations[0]['id']
     else:
-        print "Unable to fetch orgid."
+        print("Unable to fetch orgid.")
         sys.exit(4)
 
 if cmd == "staticroutes":
@@ -468,5 +468,5 @@ elif cmd == "sitetositevpn":
 elif cmd == "vlans":
     listVlans(apikey, orgid, networkToList)
 else:
-    print "Unknown command: %s" % (cmd)
+    print("Unknown command: %s" % (cmd))
 
