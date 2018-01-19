@@ -75,6 +75,8 @@ MyNetwork3
 MyNetwork1,10.1.0.0/16,'Downstream main network',10.1.1.1,True,yes
 MyNetwork1,10.2.8.0/27,'Users',10.1.1.1,True,yes
 
+# merakiapi staticroutes --network MyNetwork1 --add --subnet 10.1.1.0/24 --name testing --gateway 10.2.8.2
+
 # merakiapi clients --network MyNetwork1
 MyNetwork1,LOC-EDI-LP2457,10.2.8.58,78:c9:86:ab:43:64,137,9
 MyNetwork1,DudepleWatch,10.2.8.8,38:79:86:6b:a6:41,1,0
