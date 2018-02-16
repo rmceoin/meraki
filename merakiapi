@@ -170,17 +170,21 @@ def findNetwork(apikey, orgid, networkName):
             return network
     return False
 
-def listSiteToSiteVpn(key, orgid):
-    if (len(networkToList) < 1):
-        print("Please specify a network.")
-        return
-    network = findNetwork(apikey, orgid, networkToList)
-    if network is False:
-        print("Unable to find network: %s" % (networkToList))
-        return
-    siteToSiteVpn = getSiteToSiteVpn(key, network['id'])
-    for subnet in siteToSiteVpn['subnets']:
-        print("%s,%s" % (subnet['localSubnet'], subnet['useVpn']))
+def listSiteToSiteVpn(apikey, orgid):
+    networks = getNetworks(apikey, orgid)
+    for network in networks:
+        if verbose:
+            print("Network: %s" % (network['name']))
+
+        if (len(networkToList) < 1) or \
+                (networkToList.lower() == network['name'].lower()):
+
+            siteToSiteVpn = getSiteToSiteVpn(apikey, network['id'])
+            if 'subnets' in siteToSiteVpn:
+                for subnet in siteToSiteVpn['subnets']:
+                    print("%s,%s,%s" % (network['name'],
+                        subnet['localSubnet'],
+                        subnet['useVpn']))
 
 def listL3FirewallRules(apikey, orgid):
     if (len(networkToList) < 1):
@@ -210,8 +214,8 @@ def listStaticRoutes(key, orgid):
             staticRoutes = getStaticRoutes(apikey, network['id'])
             if verbose:
                 print("staticRoutes: %s" % (staticRoutes))
-            if staticRoutes is False:
-                continue
+#            if staticRoutes is False:
+#                continue
             siteToSiteVpnSubnets = getSiteToSiteVpnSubnetsAsHash(key, network['id'])
             for staticRoute in staticRoutes:
                 if verbose:
