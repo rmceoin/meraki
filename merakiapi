@@ -271,25 +271,33 @@ def listClients(apikey, orgid, networkName, deviceName):
                 client['usage']['recv'], client['usage']['sent']))
     return True
 
-def listDevices(apikey, orgid):
-    if len(networkToList)<1:
-        print("Please provide a network.")
-        return
-    network = findNetwork(apikey, orgid, networkToList)
-    if network == False:
-        print("Cannot find network: " % (networkToList))
-    devices = getDevices(apikey, network['id'])
-    if devices == False:
-        print("Unable to getDevices.  Wrong apikey?")
-        return
-    for device in devices:
+def listDevices(key, orgid, networkName):
+    networks = getNetworks(key, orgid)
+    for network in networks:
         if verbose:
-            print("device: %s" % (device))
-        wan1Ip = ''
-        if 'wan1Ip' in device:
-            wan1Ip = device['wan1Ip']
-        print("%s,%s,%s,%s,%s" % (device['name'], device['model'], \
-                device['serial'], device['mac'], wan1Ip))
+            print("Network: %s (%s)" % (network['name'], networkName))
+
+        if len(networkName) and (networkName.lower() != network['name'].lower()):
+            continue
+
+        devices = getDevices(key, network['id'])
+        if devices == False:
+            print("Unable to getDevices.  Wrong apikey?")
+            return
+        for device in devices:
+            if verbose:
+                print("device: %s" % (device))
+            wan1Ip = ''
+            if 'wan1Ip' in device:
+                wan1Ip = device['wan1Ip']
+            wan2Ip = ''
+            if 'wan2Ip' in device:
+                wan2Ip = device['wan2Ip']
+            tags = ''
+            if 'tags' in device:
+                tags = device['tags']
+            print("%s,%s,%s,%s,%s,%s,%s,%s" % (network['name'], device['name'], device['model'], \
+                    device['serial'], device['mac'], wan1Ip, wan2Ip, tags))
 
 def listNetworks(key, orgid):
     networks = getNetworks(key, orgid)
@@ -464,7 +472,7 @@ elif (cmd == "cdp") or (cmd == "lldp") or (cmd == "lldpcdp"):
 elif cmd == "clients":
     listClients(apikey, orgid, networkToList, device)
 elif cmd == "devices":
-    listDevices(apikey, orgid)
+    listDevices(apikey, orgid, networkToList)
 elif cmd == "networks":
     listNetworks(apikey, orgid)
 elif cmd == "organizations":
