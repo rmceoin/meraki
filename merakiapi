@@ -33,6 +33,9 @@ def getJson(key, url):
     except requests.exceptions.RequestException as e:
         print("Error: %s" % (e))
         return False
+    except KeyboardInterrupt:
+        print("Aborted")
+        sys.exit(25)
 
     if verbose:
         print("r.status_code = %s" % (r.status_code))
