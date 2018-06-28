@@ -247,11 +247,11 @@ def listClients(apikey, orgid, networkName, deviceName):
     if len(networkName)<1:
         print("Please provide a network.")
         return False
+    network = findNetwork(apikey, orgid, networkName)
+    if network == False:
+        print("Cannot find network: " % (networkName))
+        return False
     if len(deviceName)<1:
-        network = findNetwork(apikey, orgid, networkName)
-        if network == False:
-            print("Cannot find network: " % (networkName))
-            return False
         devices = getDevices(apikey, network['id'])
         if devices == False:
             print("Unable to getDevices.  Wrong apikey?")
