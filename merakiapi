@@ -126,6 +126,12 @@ def getOrganizations(key):
     url = "https://dashboard.meraki.com/api/v0/organizations"
     return getJson(key, url)
 
+# SSIDs
+
+def getSSIDs(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids" % (networkId)
+    return getJson(key, url)
+
 # Static routes
 
 def getStaticRoutes(key, networkId):
@@ -205,6 +211,24 @@ def listL3FirewallRules(apikey, orgid):
             l3FirewallRule['destCidr'], l3FirewallRule['destPort'], \
             l3FirewallRule['comment'], l3FirewallRule['syslogEnabled']))
         line += 1
+
+def listSSIDs(key, orgid, networkName):
+
+    networks = getNetworks(key, orgid)
+    for network in networks:
+        if verbose:
+            print("Network: %s (%s)" % (network['name'], networkName))
+
+        if len(networkName) and (networkName.lower() != network['name'].lower()):
+            continue
+
+        ssids = getSSIDs(key, network['id'])
+        if ssids:
+            for ssid in ssids:
+                if verbose:
+                    print("ssid: %s" % (ssid['name']))
+                print("{},{},{},{},'{}'".format(network['name'], ssid['name'], \
+                    ssid['enabled'], ssid['authMode'], ssid['ipAssignmentMode']))
 
 def listStaticRoutes(key, orgid):
     networks = getNetworks(apikey, orgid)
@@ -307,8 +331,12 @@ def listNetworks(key, orgid):
     if networks == False:
         print("Unable to getNetworks.  Wrong apikey?")
         return
+    networkNames = []
     for network in networks:
-        print("%s" % (network['name']))
+#        print("%s" % (network['name']))
+        networkNames.append(network['name'])
+    for name in sorted(networkNames):
+        print("{}".format(name))
 
 def listLldpCdpCmd(key, orgid, networkName, whichType):
     networks = getNetworks(key, orgid)
@@ -406,7 +434,7 @@ if 'MERAKI_ORGID' in os.environ:
     orgid = os.environ['MERAKI_ORGID']
 
 if len(sys.argv) < 2:
-    print("Please provide a command: cdp clients devices lldp lldpcdp networks sitetositevpn staticroutes vlans")
+    print("Please provide a command: cdp clients devices lldp lldpcdp networks sitetositevpn ssids staticroutes vlans")
     sys.exit(1)
 
 options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
@@ -485,6 +513,8 @@ elif cmd == "l3firewallrules":
     listL3FirewallRules(apikey, orgid)
 elif cmd == "sitetositevpn":
     listSiteToSiteVpn(apikey, orgid)
+elif cmd == "ssids":
+    listSSIDs(apikey, orgid, networkToList)
 elif cmd == "vlans":
     listVlans(apikey, orgid, networkToList)
 else:
