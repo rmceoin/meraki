@@ -361,7 +361,8 @@ def listVlans(apikey, orgid, networkName):
             for vlan in vlans:
                 if verbose:
                     print(" vlan: %s" % (vlan['name']))
-                print("%s,%s,%s,'%s'" % (network['name'], vlan['subnet'], vlan['applianceIp'], vlan['name']))
+                print("%s,%d,%s,%s,'%s'" % (network['name'], vlan['id'], \
+                    vlan['subnet'], vlan['applianceIp'], vlan['name']))
 
 def staticRoutesCmd(apikey, orgid):
     if addsubnet:
