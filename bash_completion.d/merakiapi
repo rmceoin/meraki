@@ -21,7 +21,7 @@ _merakiapi ()   #  By convention, the function name
       COMPREPLY=( $( compgen -W "$commonoptions --network" -- $cur ) )
       return 0
       ;;
-    sitetositevpn | vlans)
+    sitetositevpn | ssids | vlans)
       COMPREPLY=( $( compgen -W "$commonoptions --network" -- $cur ) )
       return 0
       ;;
