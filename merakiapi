@@ -270,8 +270,8 @@ def listClients(apikey, orgid, networkName, deviceName):
     clients = getClients(apikey, device['serial'])
     # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
     for client in clients:
-        print("%s,%s,%s,%s,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
-                client['usage']['recv'], client['usage']['sent']))
+        print("%s,%s,%s,%s,%d,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
+                client['vlan'],client['usage']['recv'], client['usage']['sent']))
     return True
 
 def listDevices(key, orgid, networkName):
