@@ -20,6 +20,7 @@ addsubnet = False
 subnet = ''
 subnetname = ''
 device = ''
+networkFilter = ''
 gateway = ''
 listhubs = False
 
@@ -188,12 +189,17 @@ def findHub(networks, hubId):
 
 def listSiteToSiteVpn(apikey, orgid, listhubs):
     networks = getNetworks(apikey, orgid)
+
+    if len(networkFilter):
+        filterRe = "^" + networkFilter + ".*"
+        regex=re.compile(filterRe,flags=re.IGNORECASE)
+
     for network in networks:
         if verbose:
             print("Network: %s" % (network['name']))
 
-        if (len(networkToList) < 1) or \
-                (networkToList.lower() == network['name'].lower()):
+        if (len(networkFilter) < 1) or \
+                (regex.match(network['name'])):
 
             siteToSiteVpn = getSiteToSiteVpn(apikey, network['id'])
             if siteToSiteVpn:
@@ -455,6 +461,7 @@ if len(sys.argv) < 2:
 
 options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
                                                          'device=',
+                                                         'filter=',
                                                          'gateway=',
                                                          'hubs',
                                                          'name=', 'network=',
@@ -469,6 +476,8 @@ for opt, arg in options:
         apikey = arg
     elif opt in ('--device'):
         device = arg
+    elif opt in ('--filter'):
+        networkFilter = arg
     elif opt in ('--gateway'):
         gateway = arg
     elif opt in ('--hubs'):
