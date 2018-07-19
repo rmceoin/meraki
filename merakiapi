@@ -354,9 +354,16 @@ def listNetworks(key, orgid):
         print("Unable to getNetworks.  Wrong apikey?")
         return
     networkNames = []
+
+    if len(networkFilter):
+        filterRe = "^" + networkFilter + ".*"
+        regex=re.compile(filterRe,flags=re.IGNORECASE)
+
     for network in networks:
 #        print("%s" % (network['name']))
-        networkNames.append(network['name'])
+        if (len(networkFilter) < 1) or \
+                (regex.match(network['name'])):
+            networkNames.append(network['name'])
     for name in sorted(networkNames):
         print("{}".format(name))
 
