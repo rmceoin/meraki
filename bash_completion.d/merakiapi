@@ -22,7 +22,7 @@ _merakiapi ()   #  By convention, the function name
       return 0
       ;;
     sitetositevpn)
-      COMPREPLY=( $( compgen -W "$commonoptions --network --hubs" -- $cur ) )
+      COMPREPLY=( $( compgen -W "$commonoptions --filter --hubs" -- $cur ) )
       return 0
       ;;
     ssids | vlans)
