@@ -322,11 +322,16 @@ def listClients(apikey, orgid, networkName, deviceName):
 
 def listDevices(key, orgid, networkName):
     networks = getNetworks(key, orgid)
+
+    if len(networkFilter):
+        filterRe = "^" + networkFilter + ".*"
+        regex=re.compile(filterRe,flags=re.IGNORECASE)
+
     for network in networks:
         if verbose:
             print("Network: %s (%s)" % (network['name'], networkName))
 
-        if len(networkName) and (networkName.lower() != network['name'].lower()):
+        if len(networkFilter) and not regex.match(network['name']):
             continue
 
         devices = getDevices(key, network['id'])
