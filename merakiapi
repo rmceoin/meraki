@@ -290,38 +290,7 @@ def listOrganizations(key):
     for organization in organizations:
         print("%s,'%s'" % (organization['id'], organization['name']))
 
-def listClients(apikey, orgid, networkName, deviceName):
-    if len(networkName)<1:
-        print("Please provide a network.")
-        return False
-    network = findNetwork(apikey, orgid, networkName)
-    if network == False:
-        print("Cannot find network: " % (networkName))
-        return False
-    if len(deviceName)<1:
-        devices = getDevices(apikey, network['id'])
-        if devices == False:
-            print("Unable to getDevices.  Wrong apikey?")
-            return False
-
-        if len(devices)>1:
-            print("More than one device.  Please specify a device.")
-            return False
-        device = devices[0]
-    else:
-        device = findDevice(apikey, orgid, networkName, deviceName)
-        if device == False:
-            print("Unable to find device: %s" % (deviceName))
-            return False
-
-    clients = getClients(apikey, device['serial'], duration)
-    # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
-    for client in clients:
-        print("%s,%s,%s,%s,%d,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
-                client['vlan'],client['usage']['recv'], client['usage']['sent']))
-    return True
-
-def listDevices(key, orgid, networkName):
+def listClients(key, orgid):
     networks = getNetworks(key, orgid)
 
     if len(networkFilter):
@@ -330,7 +299,39 @@ def listDevices(key, orgid, networkName):
 
     for network in networks:
         if verbose:
-            print("Network: %s (%s)" % (network['name'], networkName))
+            print("Network: %s (%s)" % (network['name'], networkFilter))
+
+        if len(networkFilter) and not regex.match(network['name']):
+            continue
+
+        devices = getDevices(apikey, network['id'])
+        if devices == False:
+            print("Unable to getDevices.  Wrong apikey?")
+            return False
+
+        for device in devices:
+
+            clients = getClients(apikey, device['serial'], duration)
+    # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
+            if clients:
+                for client in clients:
+                    vlan = 0
+                    if client['vlan']:
+                        vlan = client['vlan']
+                    print("%s,%s,%s,%s,%d,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
+                            vlan,client['usage']['recv'], client['usage']['sent']))
+    return True
+
+def listDevices(key, orgid):
+    networks = getNetworks(key, orgid)
+
+    if len(networkFilter):
+        filterRe = "^" + networkFilter + ".*"
+        regex=re.compile(filterRe,flags=re.IGNORECASE)
+
+    for network in networks:
+        if verbose:
+            print("Network: %s (%s)" % (network['name'], networkFilter))
 
         if len(networkFilter) and not regex.match(network['name']):
             continue
@@ -549,9 +550,9 @@ if cmd == "staticroutes":
 elif (cmd == "cdp") or (cmd == "lldp") or (cmd == "lldpcdp"):
     listLldpCdpCmd(apikey, orgid, networkToList, cmd)
 elif cmd == "clients":
-    listClients(apikey, orgid, networkToList, device)
+    listClients(apikey, orgid)
 elif cmd == "devices":
-    listDevices(apikey, orgid, networkToList)
+    listDevices(apikey, orgid)
 elif cmd == "networks":
     listNetworks(apikey, orgid)
 elif cmd == "organizations":
