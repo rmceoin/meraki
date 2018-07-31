@@ -20,6 +20,7 @@ addsubnet = False
 subnet = ''
 subnetname = ''
 device = ''
+duration = 7200 # default 2 hours
 networkFilter = ''
 gateway = ''
 listhubs = False
@@ -84,8 +85,8 @@ def postJson(key, url, parameters):
 
 # Clients
 
-def getClients(key, deviceId):
-    url = "https://dashboard.meraki.com/api/v0/devices/%s/clients?timespan=86400" % (deviceId)
+def getClients(key, deviceId, duration):
+    url = "https://dashboard.meraki.com/api/v0/devices/%s/clients?timespan=%d" % (deviceId, duration)
     return getJson(key, url)
 
 # Devices
@@ -313,7 +314,7 @@ def listClients(apikey, orgid, networkName, deviceName):
             print("Unable to find device: %s" % (deviceName))
             return False
 
-    clients = getClients(apikey, device['serial'])
+    clients = getClients(apikey, device['serial'], duration)
     # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
     for client in clients:
         print("%s,%s,%s,%s,%d,%d,%d" % (network['name'],client['description'],client['ip'], client['mac'], \
@@ -473,6 +474,7 @@ if len(sys.argv) < 2:
 
 options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
                                                          'device=',
+                                                         'duration=',
                                                          'filter=',
                                                          'gateway=',
                                                          'hubs',
@@ -488,6 +490,11 @@ for opt, arg in options:
         apikey = arg
     elif opt in ('--device'):
         device = arg
+    elif opt in ('--duration'):
+        duration = abs(int(arg))
+        # if greater than a month, then truncate to a month
+        if duration > 2592000:
+            duration = 2592000
     elif opt in ('--filter'):
         networkFilter = arg
     elif opt in ('--gateway'):
