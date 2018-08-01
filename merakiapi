@@ -323,8 +323,12 @@ def listClients(key, orgid):
     return True
 
 def listDevices(key, orgid):
+    global networkToList, networkFilter
+
     networks = getNetworks(key, orgid)
 
+    if len(networkToList) and (len(networkFilter)<1):
+        networkFilter = networkToList
     if len(networkFilter):
         filterRe = "^" + networkFilter + ".*"
         regex=re.compile(filterRe,flags=re.IGNORECASE)
