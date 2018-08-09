@@ -3,7 +3,8 @@
 #
 # Update Umbrella Networks based on Meraki Networks
 #
-# Meraki support must white list the public IP from where this script is run.
+# Meraki support must whitelist the public IP from where this script is run,
+# as well as the account used to perform the update.
 #
 
 #
