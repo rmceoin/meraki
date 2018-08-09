@@ -1,0 +1,164 @@
+#!/usr/bin/python3
+
+#
+# Update Umbrella Networks based on Meraki Networks
+#
+# Meraki support must white list the public IP from where this script is run.
+#
+
+#
+# dyndns2 format::
+#
+#   curl -v -u user@domain.com 'https://updates.opendns.com/nic/update?hostname=Net_name&myip=xx.xx.xx.xx'
+#
+#  Spaces in hostname need to be replaced with underscores
+#  Use %40 in username to replace @
+#
+
+import getopt, os, sys
+import yaml
+from meraki import meraki
+import requests
+
+verbose = False
+
+def doDynDns2(username, password, hostname, myip):
+
+    hostname = hostname.replace(" ","_")
+    url = 'https://updates.opendns.com/nic/update?hostname={}&myip={}'.format(hostname, myip)
+
+    print("url={}".format(url))
+
+    headers = {}
+#    headers['X-Cisco-Meraki-API-Key'] = key
+
+    try:
+        r = requests.get(url, headers=headers, auth=(username, password))
+    except requests.exceptions.RequestException as e:
+        print("Error: %s" % (e))
+        return False
+    except KeyboardInterrupt:
+        print("Aborted")
+        sys.exit(25)
+
+    if verbose:
+        print("r.status_code = %s" % (r.status_code))
+        print("r.text = %s" % (r.text))
+
+    if r.status_code == 400:
+        if verbose:
+            print("400 Bad request: %s : %s" % (url, r.text))
+        return False
+    if r.status_code == 401:
+        print("Bad auth ({}): {}".format(username,url))
+        sys.exit(50)
+    if r.status_code == 404:
+        print("404 Not found: %s" % (url))
+        return False
+    if r.status_code != 200:
+        print("Error: %s - %s" % (r.status_code, r.text))
+        return False
+
+    if r.text == "good":
+        if verbose:
+            print("Successful Update: {}".format(hostname))
+        return True
+    elif r.text == "nohost":
+        print("Umbrella network does not exist: {}".format(hostname))
+
+    return False
+
+def main():
+    global verbose
+
+    apikey = ''
+    orgid = 0
+    configFilename = ''
+
+    if 'MERAKI_APIKEY' in os.environ:
+        apikey = os.environ['MERAKI_APIKEY']
+    if 'MERAKI_ORGID' in os.environ:
+        orgid = os.environ['MERAKI_ORGID']
+
+    options, remainder = getopt.getopt(sys.argv[1:], 'a:c:v', [ 'apikey=', 'config=',
+                                                             'verbose',
+                                                             ])
+    for opt, arg in options:
+        if opt in ('-v', '--verbose'):
+            verbose = True
+        elif opt in ('-a', '--apikey'): 
+            apikey = arg
+        elif opt in ('-c', '--config'): 
+            configFilename = arg
+
+    if len(configFilename) < 1:
+        print("Missing config filename")
+        sys.exit(2)
+
+    if not os.path.isfile(configFilename):
+        print("Config file missing: {}".format(configFilename))
+        sys.exit(3)
+
+    configuration = {}
+
+    with open(configFilename) as fp:
+        configuration = yaml.load(fp)
+
+    print("configuration={}".format(configuration))
+
+    if 'apikey' in configuration:
+        apikey = configuration['apikey']
+
+    if len(apikey) < 1:
+        print("Missing apikey")
+        sys.exit(1)
+
+    if orgid == 0:
+        # if no orgid specified, then use the first one associated with account
+        myOrgs = meraki.myorgaccess(apikey, True)
+        for org in myOrgs:
+            orgid=org['id']
+
+    networks = meraki.getnetworklist(apikey, orgid, None, True)
+#    for network in networks:
+#        print("{}".format(network))
+
+    networksByName = {}
+    for network in networks:
+        networksByName[network['name']] = network
+
+    if not 'networks' in configuration:
+        print("Missing 'networks' in configuration")
+        sys.exit(20)
+
+    if not 'username' in configuration:
+        print("Missing 'userame' in configuration")
+        sys.exit(21)
+
+    if not 'password' in configuration:
+        print("Missing 'password' in configuration")
+        sys.exit(22)
+
+    for network in configuration['networks']:
+        print("network={}".format(network))
+        print("meraki={}".format(network['meraki']))
+        if not network['meraki'] in networksByName:
+            print("{} is not a known Meraki network".format(network['meraki']))
+            sys.exit(30)
+
+        devices = meraki.getnetworkdevices(apikey, networksByName[network['meraki']]['id'], True)
+        if len(devices) == 1:
+            uplinks = meraki.getdeviceuplink(apikey, networksByName[network['meraki']]['id'], devices[0]['serial'], True)
+            print("uplinks={}".format(uplinks))
+            for uplink in uplinks:
+                if uplink['status'] == 'Active':
+                    print("publicIp={}".format(uplink['publicIp']))
+                    doDynDns2(configuration['username'], configuration['password'], network['umbrella'], uplink['publicIp'])
+        elif len(devices) > 1:
+            print("{} has more than one device.  Skipping.".format(network['meraki']))
+
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+
