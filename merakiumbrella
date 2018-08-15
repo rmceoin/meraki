@@ -25,10 +25,10 @@ verbose = False
 
 def doDynDns2(username, password, hostname, myip):
 
-    hostname = hostname.replace(" ","%20")
-    url = 'https://updates.opendns.com/nic/update?hostname={}&origin_ip={}'.format(hostname, myip)
+    url = 'https://updates.opendns.com/nic/update?hostname={}&origin_ip={}'.format(hostname.replace(" ","%20"), myip)
 
-    print("url={}".format(url))
+    if verbose:
+        print("url={}".format(url))
 
     headers = {}
 #    headers['X-Cisco-Meraki-API-Key'] = key
@@ -61,11 +61,10 @@ def doDynDns2(username, password, hostname, myip):
         return False
 
     if r.text == "good":
-        if verbose:
-            print("Successful Update: {}".format(hostname))
+        print("{} updated to {}".format(hostname, myip))
         return True
     elif r.text == "nohost":
-        print("Umbrella network does not exist: {}".format(hostname))
+        print("{} Umbrella network does not exist.  Or account/source IP not authorized.".format(hostname))
 
     return False
 
@@ -105,7 +104,8 @@ def main():
     with open(configFilename) as fp:
         configuration = yaml.load(fp)
 
-    print("configuration={}".format(configuration))
+    if verbose:
+        print("configuration={}".format(configuration))
 
     if 'apikey' in configuration:
         apikey = configuration['apikey']
@@ -141,8 +141,9 @@ def main():
         sys.exit(22)
 
     for network in configuration['networks']:
-        print("network={}".format(network))
-        print("meraki={}".format(network['meraki']))
+        if verbose:
+            print("network={}".format(network))
+            print("meraki={}".format(network['meraki']))
         if not network['meraki'] in networksByName:
             print("{} is not a known Meraki network".format(network['meraki']))
             sys.exit(30)
@@ -150,10 +151,12 @@ def main():
         devices = meraki.getnetworkdevices(apikey, networksByName[network['meraki']]['id'], True)
         if len(devices) == 1:
             uplinks = meraki.getdeviceuplink(apikey, networksByName[network['meraki']]['id'], devices[0]['serial'], True)
-            print("uplinks={}".format(uplinks))
+            if verbose:
+                print("uplinks={}".format(uplinks))
             for uplink in uplinks:
                 if uplink['status'] == 'Active':
-                    print("publicIp={}".format(uplink['publicIp']))
+                    if verbose:
+                        print("publicIp={}".format(uplink['publicIp']))
                     doDynDns2(configuration['username'], configuration['password'], network['umbrella'], uplink['publicIp'])
         elif len(devices) > 1:
             print("{} has more than one device.  Skipping.".format(network['meraki']))
