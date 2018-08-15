@@ -169,7 +169,6 @@ def main():
     if 'password64' in configuration:
         password = base64.b64decode(configuration['password64'])
 
-    print("password={}".format(password))
     for network in configuration['networks']:
         if verbose:
             print("network={}".format(network))
