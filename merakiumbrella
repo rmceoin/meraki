@@ -24,6 +24,7 @@ import requests
 verbose = False
 
 def doDynDns2(username, password, hostname, myip):
+    global verbose
 
     url = 'https://updates.opendns.com/nic/update?hostname={}&origin_ip={}'.format(hostname.replace(" ","%20"), myip)
 
@@ -60,7 +61,7 @@ def doDynDns2(username, password, hostname, myip):
         print("Error: %s - %s" % (r.status_code, r.text))
         return False
 
-    if r.text == "good":
+    if r.text.startswith("good"):
         print("{} updated to {}".format(hostname, myip))
         return True
     elif r.text == "nohost":
