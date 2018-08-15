@@ -16,7 +16,27 @@
 #  Use %40 in username to replace @
 #
 
-import getopt, os, sys
+#
+# Use base64 to encode the Umbrella password.
+#
+#    unset HISTFILE && echo -n secretPass | base64
+#
+
+# Format of YAML configuration file is as such:
+#
+# apikey: 'your-api-key-goes-here'
+#
+# username: 'umbrellalogin@yourdomain.com'
+# password64: 'c2VjcmV0UGFzcw=='
+#
+# networks:
+#  - meraki: 'Network1'
+#    umbrella: 'Network 1'
+#  - meraki: 'Another Net'
+#    umbrella: 'Another Network'
+#
+
+import getopt, os, sys, base64
 import yaml
 from meraki import meraki
 import requests
@@ -137,10 +157,19 @@ def main():
         print("Missing 'userame' in configuration")
         sys.exit(21)
 
-    if not 'password' in configuration:
-        print("Missing 'password' in configuration")
+    if (not 'password' in configuration) and (not 'password64' in configuration):
+        print("Missing 'password' or 'password64' in configuration")
         sys.exit(22)
 
+
+    password = ''
+    if 'password' in configuration:
+        password = configuration['password']
+
+    if 'password64' in configuration:
+        password = base64.b64decode(configuration['password64'])
+
+    print("password={}".format(password))
     for network in configuration['networks']:
         if verbose:
             print("network={}".format(network))
@@ -158,7 +187,7 @@ def main():
                 if uplink['status'] == 'Active':
                     if verbose:
                         print("publicIp={}".format(uplink['publicIp']))
-                    doDynDns2(configuration['username'], configuration['password'], network['umbrella'], uplink['publicIp'])
+                    doDynDns2(configuration['username'], password, network['umbrella'], uplink['publicIp'])
         elif len(devices) > 1:
             print("{} has more than one device.  Skipping.".format(network['meraki']))
 
