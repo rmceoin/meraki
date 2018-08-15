@@ -10,9 +10,9 @@
 #
 # dyndns2 format::
 #
-#   curl -v -u user@domain.com 'https://updates.opendns.com/nic/update?hostname=Net_name&myip=xx.xx.xx.xx'
+#   curl -v -u user@domain.com 'https://updates.opendns.com/nic/update?hostname=Net%20name&origin_ip=xx.xx.xx.xx'
 #
-#  Spaces in hostname need to be replaced with underscores
+#  Spaces in hostname need to be replaced with %20
 #  Use %40 in username to replace @
 #
 
@@ -25,8 +25,8 @@ verbose = False
 
 def doDynDns2(username, password, hostname, myip):
 
-    hostname = hostname.replace(" ","_")
-    url = 'https://updates.opendns.com/nic/update?hostname={}&myip={}'.format(hostname, myip)
+    hostname = hostname.replace(" ","%20")
+    url = 'https://updates.opendns.com/nic/update?hostname={}&origin_ip={}'.format(hostname, myip)
 
     print("url={}".format(url))
 
