@@ -129,6 +129,10 @@ def getOrganizations(key):
     url = "https://dashboard.meraki.com/api/v0/organizations"
     return getJson(key, url)
 
+def getDeviceStatuses(key, orgid):
+    url = "https://dashboard.meraki.com/api/v0/organizations/%s/deviceStatuses" % (orgid)
+    return getJson(key, url)
+
 # SSIDs
 
 def getSSIDs(key, networkId):
@@ -322,6 +326,53 @@ def listClients(key, orgid):
                             vlan,client['usage']['recv'], client['usage']['sent']))
     return True
 
+def listDeviceStatuses(key, orgid):
+    global networkFilter
+
+    deviceStatuses = getDeviceStatuses(key, orgid)
+
+    networks = getNetworks(key, orgid)
+
+    if len(networkFilter):
+        filterRe = "^" + networkFilter + ".*"
+        regex=re.compile(filterRe,flags=re.IGNORECASE)
+
+    for network in networks:
+        if (networkFilter) and not regex.match(network['name']):
+            continue
+
+        for deviceStatus in deviceStatuses:
+            if network['id'] != deviceStatus['networkId']:
+                continue
+
+            if verbose:
+                print("deviceStatus: {}".format(deviceStatus))
+
+            publicIp=''
+            lanIp=''
+            wan1Ip=''
+            wan2Ip=''
+            if 'publicIp' in deviceStatus:
+                publicIp=deviceStatus['publicIp']
+            if 'lanIp' in deviceStatus:
+                lanIp=deviceStatus['lanIp']
+            if 'wan1Ip' in deviceStatus:
+                wan1Ip=deviceStatus['wan1Ip']
+            if 'wan2Ip' in deviceStatus:
+                wan2Ip=deviceStatus['wan2Ip']
+
+            print("{},{},{},{},{},{},{},{},{}".format(
+                network['name'],
+                deviceStatus['name'],
+                deviceStatus['serial'],
+                deviceStatus['mac'],
+                deviceStatus['status'],
+                publicIp,
+                lanIp,
+                wan1Ip,
+                wan2Ip,
+                ))
+
 def listDevices(key, orgid):
     global networkToList, networkFilter
 
@@ -474,7 +525,7 @@ if 'MERAKI_ORGID' in os.environ:
     orgid = os.environ['MERAKI_ORGID']
 
 if len(sys.argv) < 2:
-    print("Please provide a command: cdp clients devices lldp lldpcdp networks sitetositevpn ssids staticroutes vlans")
+    print("Please provide a command: cdp clients devices devicestatuses lldp lldpcdp networks sitetositevpn ssids staticroutes vlans")
     sys.exit(1)
 
 options, remainder = getopt.getopt(sys.argv[2:], 's:v', ['add', 'apikey=',
@@ -557,6 +608,8 @@ elif cmd == "clients":
     listClients(apikey, orgid)
 elif cmd == "devices":
     listDevices(apikey, orgid)
+elif cmd == "devicestatuses":
+    listDeviceStatuses(apikey, orgid)
 elif cmd == "networks":
     listNetworks(apikey, orgid)
 elif cmd == "organizations":
