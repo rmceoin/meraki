@@ -99,6 +99,35 @@ def getNetworks(key, orgid):
         return 0
     return data
 
+def getJson(key, url):
+    try:
+        req = urllib2.Request(url)
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('X-Cisco-Meraki-API-Key', key)
+        resp = urllib2.urlopen(req)
+        content = resp.read()
+    except urllib2.HTTPError, e:
+        print "Failed getting %s with error code %s" % (url, e.code)
+        return 0
+
+    data = json.loads(content)
+    if len(data) == 0:
+        print "Invalid response for %s" % (url)
+        return 0
+    return data
+
+def getOneToOneNatRules(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToOneNatRules" % (networkId)
+    return getJson(key, url)
+
+def getOneToManyNatRules(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
+    return getJson(key, url)
+
+def getPortForwardingRules(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
+    return getJson(key, url)
+
 def getContentFiltering(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/contentFiltering" % (networkId)
     try:
@@ -445,6 +474,15 @@ for organization in organizations:
 
             contentFiltering = getContentFiltering(apikey, network['id'])
             network['contentFiltering'] = contentFiltering
+
+            oneToOneNatRules = getOneToOneNatRules(apikey, network['id'])
+            network['oneToOneNatRules'] = oneToOneNatRules
+
+            oneToManyNatRules = getOneToManyNatRules(apikey, network['id'])
+            network['oneToManyNatRules'] = oneToManyNatRules
+
+            portForwardingRules = getPortForwardingRules(apikey, network['id'])
+            network['portForwardingRules'] = portForwardingRules
 
     organization['networks']=networks
 
