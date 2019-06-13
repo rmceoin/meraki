@@ -49,7 +49,8 @@ def getJson(key, url):
             print("400 Bad request: %s : %s" % (url, r.text))
         return False
     if r.status_code == 404:
-        print("404 Not found: %s" % (url))
+        if verbose:
+            print("404 Not found: %s" % (url))
         return False
     if r.status_code != 200:
         print("Error: %s - %s" % (r.status_code, r.text))
@@ -271,18 +272,19 @@ def listStaticRoutes(key, orgid):
 #            if staticRoutes is False:
 #                continue
             siteToSiteVpnSubnets = getSiteToSiteVpnSubnetsAsHash(key, network['id'])
-            for staticRoute in staticRoutes:
-                if verbose:
-                    print("  staticRoute: %s" % (staticRoute))
-                invpn = ''
-                if staticRoute['subnet'] in siteToSiteVpnSubnets:
-                    useVpn = siteToSiteVpnSubnets[staticRoute['subnet']]['useVpn']
-                    if useVpn:
-                        invpn = 'yes'
-                    else:
-                        invpn = 'no'
+            if staticRoutes:
+                for staticRoute in staticRoutes:
+                    if verbose:
+                        print("  staticRoute: %s" % (staticRoute))
+                    invpn = ''
+                    if staticRoute['subnet'] in siteToSiteVpnSubnets:
+                        useVpn = siteToSiteVpnSubnets[staticRoute['subnet']]['useVpn']
+                        if useVpn:
+                            invpn = 'yes'
+                        else:
+                            invpn = 'no'
 
-                print("%s,%s,'%s',%s,%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'], invpn))
+                    print("%s,%s,'%s',%s,%s,%s" % (network['name'], staticRoute['subnet'], staticRoute['name'], staticRoute['gatewayIp'], staticRoute['enabled'], invpn))
             if len(networkToList):
                 return
 
