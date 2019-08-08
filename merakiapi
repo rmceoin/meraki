@@ -152,6 +152,10 @@ def getVlans(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/vlans" % (networkId)
     return getJson(key, url)
 
+def getNetworkSecurityEvents(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/securityEvents" % (networkId)
+    return getJson(key, url)
+
 def addStaticRoute(key, networkId, subnet, subnetname, gatewayIp):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
     parameters = {}
@@ -409,8 +413,13 @@ def listDevices(key, orgid):
             tags = ''
             if 'tags' in device:
                 tags = device['tags']
-            print("%s,%s,%s,%s,%s,%s,%s,%s" % (network['name'], device['name'], device['model'], \
-                    device['serial'], device['mac'], wan1Ip, wan2Ip, tags))
+            device_name = ''
+            if 'name' in device:
+                device_name = device['name']
+            print("%s,%s,%s,%s,%s,%s,%s,%s" % (network['name'],
+                  device_name,
+                  device['model'],
+                  device['serial'], device['mac'], wan1Ip, wan2Ip, tags))
 
 def listNetworks(key, orgid):
     networks = getNetworks(key, orgid)
@@ -484,6 +493,21 @@ def listVlans(apikey, orgid, networkName):
                     print(" vlan: %s" % (vlan['name']))
                 print("%s,%d,%s,%s,'%s'" % (network['name'], vlan['id'], \
                     vlan['subnet'], vlan['applianceIp'], vlan['name']))
+
+def listSecurityEvents(apikey, orgid, networkName):
+    networks = getNetworks(apikey, orgid)
+    for network in networks:
+        if verbose:
+            print("Network: %s (%s)" % (network['name'], networkName))
+
+        if len(networkName) and (networkName.lower() != network['name'].lower()):
+            continue
+
+        securityEvents = getNetworkSecurityEvents(apikey, network['id'])
+        if securityEvents:
+            for securityEvent in securityEvents:
+                if verbose:
+                    print(" event: %s" % (securityEvent['message']))
 
 def staticRoutesCmd(apikey, orgid):
     if addsubnet:
@@ -624,6 +648,8 @@ elif cmd == "ssids":
     listSSIDs(apikey, orgid, networkToList)
 elif cmd == "vlans":
     listVlans(apikey, orgid, networkToList)
+elif cmd == "securityevents":
+    listSecurityEvents(apikey, orgid, networkToList)
 else:
     print("Unknown command: %s" % (cmd))
 
