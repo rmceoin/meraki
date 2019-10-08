@@ -1,244 +1,128 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
-#
-# Before running the script, it's best to put the APIKEY
-# into the MERAKI_APIKEY environment variable.  Otherwise
-# use the less security --apikey option.
-#
-# export MERAKI_APIKEY="the_api_key_here"
-#
-# curl -s -L -H "X-Cisco-Meraki-API-Key: $apikey" -X GET -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
-#
-#
+"""
+merakibackup.py
+
+Iterates through all organizations and networks visable to the APIKEY,
+retreives data from all known API endpoints and then outputs as
+a single JSON array.
+
+Before running the script, it's best to put the APIKEY
+into the MERAKI_APIKEY environment variable.  Otherwise
+use the less security --apikey option.
+
+export MERAKI_APIKEY="the_api_key_here"
+
+curl -s -L -H "X-Cisco-Meraki-API-Key: $apikey" -X GET \
+ -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
+
+"""
 
 import getopt
 import json
 import os
 import sys
-import urllib2
+from httplib2 import Http, HttpLib2Error
 
+DEBUG = False
 apikey = ''
 verbose = False
 output_filename = ''
 
-def getOrganizations(key):
+def getJson(key: str, url: str, okay_code: int = None) -> dict:
+    try:
+        message_headers = {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'X-Cisco-Meraki-API-Key': key
+        }
+
+        http_obj = Http()
+
+        response = http_obj.request(
+            uri=url,
+            method='GET',
+            headers=message_headers,
+        )
+    except HttpLib2Error as exception:
+        print("Exception getting {} with error code {}".format(url, exception))
+        return None
+
+    headers = response[0]
+    if headers.status != 200:
+        if okay_code and okay_code == headers.status:
+            return None
+        if verbose:
+            print("Failed getting {} with error code {}".format(url, headers.status))
+        return None
+
+    data = json.loads(response[1])
+    if len(data) == 0:
+        if DEBUG:
+            print("Empty response for {}".format(url))
+        return None
+    return data
+
+def getOrganizations(key: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/organizations"
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
+    return getJson(key, url)
 
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-
-    return data
-
-def getAlertSettings(key, networkId):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/alertSettings" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-    return data
-
-def getVpnFirewallRules(key, orgid):
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/vpnFirewallRules" % (orgid)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        if e.code == 404:
-            # It appears that if there are none it returns 404
-            return False
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-    return data
-
-def getNetworks(key, orgid):
+def getNetworks(key: str, orgid: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-    return data
-
-def getJson(key, url):
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-    return data
-
-def getOneToOneNatRules(key, networkId):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToOneNatRules" % (networkId)
     return getJson(key, url)
 
-def getOneToManyNatRules(key, networkId):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
+def getAlertSettings(key: str, networkId: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/alertSettings" % (networkId)
     return getJson(key, url)
 
-def getPortForwardingRules(key, networkId):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
-    return getJson(key, url)
+def getConnectivityMonitoringDestinations(key: str, networkId: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/connectivityMonitoringDestinations" % (networkId)
+    return getJson(key, url, 400)
 
-def getContentFiltering(key, networkId):
+def getContentFiltering(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/contentFiltering" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
+    return getJson(key, url, 400)
 
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-    return data
+def getBrandingPolicies(key: str, orgid: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/organizations/%s/brandingPolicies" % (orgid)
+    return getJson(key, url, 400)
 
-def getVlans(key, networkId):
+def getVpnFirewallRules(key: str, orgid: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/organizations/%s/vpnFirewallRules" % (orgid)
+    return getJson(key, url)
+
+def getOneToOneNatRules(key: str, networkId: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToOneNatRules" % (networkId)
+    return getJson(key, url, 400)
+
+def getOneToManyNatRules(key: str, networkId: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
+    return getJson(key, url, 400)
+
+def getPortForwardingRules(key: str, networkId: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
+    return getJson(key, url)
+
+def getVlans(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/vlans" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url, 400)
 
-        if e.code == 400:
-            # { "errors": [ "VLANs are not enabled for this network" ] }
-            return False
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-    return data
-
-def getVlansEnabledState(key, networkId):
+def getVlansEnabledState(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/vlansEnabledState" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url, 400)
 
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    if len(data) == 0:
-        print "Invalid response for %s" % (url)
-        return 0
-    return data
-
-def getStaticRoutes(key, networkId):
+def getStaticRoutes(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url, 400)
 
-        if e.code == 400:
-            return False
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getSiteToSiteVpn(key, networkId):
+def getSiteToSiteVpn(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/siteToSiteVpn" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url, 404)
 
-        if e.code == 400:
-            return False
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getL3FirewallRules(key, networkId):
+def getL3FirewallRules(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/l3FirewallRules" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url, 404)
 
-        if e.code == 400:
-            return False
-
+<<<<<<< HEAD
         print "Failed getting %s with error code %s" % (url, e.code)
         return 0
 
@@ -258,166 +142,46 @@ def getMalwareSettings(key, networkId):
     return getJson(key, url)
 
 def getSsids(key, networkId):
+=======
+def getSsids(key: str, networkId: str) -> dict:
+>>>>>>> 8f0c9bc... bump to python3 and major clean up to use getJson
     url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url, 404)
 
-        if e.code == 404:
-            # It appears that if there are none it returns 404
-            return False
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getGroupPolicies(key, networkId):
+def getGroupPolicies(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/groupPolicies" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url)
 
-        if e.code == 400:
-            return False
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getDevices(key, networkId):
+def getDevices(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/devices" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url)
 
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getDeviceUplink(key, networkId, serial):
+def getDeviceUplink(key: str, networkId: str, serial: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/devices/%s/uplink" % (networkId, serial)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url)
 
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getFirewalledServices(key, networkId):
+def getFirewalledServices(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/firewalledServices" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url, 400)
 
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
+def getSnmp(key: str, organizationId: str) -> dict:
+    url = "https://dashboard.meraki.com/api/v0/organizations/%s/snmp" % (organizationId)
+    return getJson(key, url)
 
-    data = json.loads(content)
-    return data
-
-def getSnmp(key, organizationId):
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/snamp" % (organizationId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        if e.code == 404:
-            # It appears that if there are none it returns 404
-            return False
-
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getThirdPartyVPNPeers(key, organizationId):
+def getThirdPartyVPNPeers(key: str, organizationId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/organizations/%s/thirdPartyVPNPeers" % (organizationId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        if e.code == 404:
-            # It appears that if there are none it returns 404
-            return False
+    return getJson(key, url)
 
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getSyslogServers(key, networkId):
+def getSyslogServers(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/syslogServers" % (networkId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
+    return getJson(key, url)
 
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-def getSamlRoles(key, organizationId):
+def getSamlRoles(key: str, organizationId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/organizations/%s/samlRoles" % (organizationId)
-    try:
-        req = urllib2.Request(url)
-        req.add_header('Content-Type', 'application/json')
-        req.add_header('X-Cisco-Meraki-API-Key', key)
-        resp = urllib2.urlopen(req)
-        content = resp.read()
-    except urllib2.HTTPError, e:
-        if e.code == 404:
-            # It appears that if there are none it returns 404
-            return False
+    return getJson(key, url)
 
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
-options, remainder = getopt.getopt(sys.argv[1:], 'a:o:v', ['output=', 
+options, remainder = getopt.getopt(sys.argv[1:], 'a:o:v', [
+    'output=',
     'apikey=',
     'verbose',
     ])
@@ -432,49 +196,67 @@ for opt, arg in options:
 if 'MERAKI_APIKEY' in os.environ:
     apikey = os.environ['MERAKI_APIKEY']
 
-if len(apikey) < 1:
+if not apikey:
     print("Missing apikey")
     sys.exit(2)
 
 organizations = getOrganizations(apikey)
 for organization in organizations:
     if verbose:
-        print "Organization: %s" % (organization['name'])
+        print("Organization: {}".format(organization['name']))
     networks = getNetworks(apikey, organization['id'])
-    for network in networks:
-        if verbose:
-            print "Network: %s" % (network['name'])
-
-        devices = getDevices(apikey, network['id'])
-        network['devices'] = devices
-        for device in devices:
+    if networks:
+        for network in networks:
             if verbose:
-                print " Device: %s" % (device['name'])
-            uplink = getDeviceUplink(apikey, network['id'], device['serial'])
-            device['uplink'] = uplink
+                print("Network: {}".format(network['name']))
 
+            devices = getDevices(apikey, network['id'])
+            network['devices'] = devices
+            if devices:
+                for device in devices:
+                    device_name = None
+                    if 'name' in device:
+                        device_name = device['name']
+                    if verbose:
+                        print(" Device: {}".format(device_name))
+                    uplink = getDeviceUplink(apikey, network['id'], device['serial'])
+                    device['uplink'] = uplink
+
+                    if not device['model'].startswith('MV'):
+                        alertSettings = getAlertSettings(apikey, network['id'])
+                        network['alertSettings'] = alertSettings
+
+                        connectivityMonitoringDestinations = getConnectivityMonitoringDestinations(apikey, network['id'])
+                        network['connectivityMonitoringDestinations'] = connectivityMonitoringDestinations
+
+<<<<<<< HEAD
         if device['model'].startswith('MX') or device['model'].startswith('Z'):
             alertSettings = getAlertSettings(apikey, network['id'])
             network['alertSettings'] = alertSettings
+=======
+                        vlans = getVlans(apikey, network['id'])
+                        network['vlans'] = vlans
+>>>>>>> 8f0c9bc... bump to python3 and major clean up to use getJson
 
-            vlans = getVlans(apikey, network['id'])
-            network['vlans'] = vlans
+                        vlansEnabledState = getVlansEnabledState(apikey, network['id'])
+                        network['vlansEnabledState'] = vlansEnabledState
 
-            vlansEnabledState = getVlansEnabledState(apikey, network['id'])
-            network['vlansEnabledState'] = vlansEnabledState
+                        firewalledServices = getFirewalledServices(apikey, network['id'])
+                        network['firewalledServices'] = firewalledServices
 
-            firewalledServices = getFirewalledServices(apikey, network['id'])
-            network['firewalledServices'] = firewalledServices
+                        staticRoutes = getStaticRoutes(apikey, network['id'])
+                        network['staticRoutes'] = staticRoutes
 
-            staticRoutes = getStaticRoutes(apikey, network['id'])
-            network['staticRoutes'] = staticRoutes
+                        siteToSiteVpn = getSiteToSiteVpn(apikey, network['id'])
+                        network['siteToSiteVpn'] = siteToSiteVpn
 
-            siteToSiteVpn = getSiteToSiteVpn(apikey, network['id'])
-            network['siteToSiteVpn'] = siteToSiteVpn
+                        l3FirewallRules = getL3FirewallRules(apikey, network['id'])
+                        network['l3FirewallRules'] = l3FirewallRules
 
-            l3FirewallRules = getL3FirewallRules(apikey, network['id'])
-            network['l3FirewallRules'] = l3FirewallRules
+                        groupPolicies = getGroupPolicies(apikey, network['id'])
+                        network['groupPolicies'] = groupPolicies
 
+<<<<<<< HEAD
             l7FirewallRules = getL7FirewallRules(apikey, network['id'])
             network['l7FirewallRules'] = l7FirewallRules
 
@@ -483,44 +265,48 @@ for organization in organizations:
 
             groupPolicies = getGroupPolicies(apikey, network['id'])
             network['groupPolicies'] = groupPolicies
+=======
+                        ssids = getSsids(apikey, network['id'])
+                        network['ssids'] = ssids
+>>>>>>> 8f0c9bc... bump to python3 and major clean up to use getJson
 
-            ssids = getSsids(apikey, network['id'])
-            network['ssids'] = ssids
+                        syslogServers = getSyslogServers(apikey, network['id'])
+                        network['syslogServers'] = syslogServers
 
-            syslogServers = getSyslogServers(apikey, network['id'])
-            network['syslogServers'] = syslogServers
+                        contentFiltering = getContentFiltering(apikey, network['id'])
+                        network['contentFiltering'] = contentFiltering
 
-            contentFiltering = getContentFiltering(apikey, network['id'])
-            network['contentFiltering'] = contentFiltering
+                        oneToOneNatRules = getOneToOneNatRules(apikey, network['id'])
+                        network['oneToOneNatRules'] = oneToOneNatRules
 
-            oneToOneNatRules = getOneToOneNatRules(apikey, network['id'])
-            network['oneToOneNatRules'] = oneToOneNatRules
+                        oneToManyNatRules = getOneToManyNatRules(apikey, network['id'])
+                        network['oneToManyNatRules'] = oneToManyNatRules
 
-            oneToManyNatRules = getOneToManyNatRules(apikey, network['id'])
-            network['oneToManyNatRules'] = oneToManyNatRules
+                        portForwardingRules = getPortForwardingRules(apikey, network['id'])
+                        network['portForwardingRules'] = portForwardingRules
 
-            portForwardingRules = getPortForwardingRules(apikey, network['id'])
-            network['portForwardingRules'] = portForwardingRules
+    organization['networks'] = networks
 
-    organization['networks']=networks
+    brandingPolicies = getBrandingPolicies(apikey, organization['id'])
+    organization['brandingPolicies'] = brandingPolicies
 
     vpnFirewallRules = getVpnFirewallRules(apikey, organization['id'])
-    organization['vpnFirewallRules']=vpnFirewallRules
+    organization['vpnFirewallRules'] = vpnFirewallRules
 
     snmp = getSnmp(apikey, organization['id'])
-    organization['snmp']=snmp
+    organization['snmp'] = snmp
 
     thirdPartyVPNPeers = getThirdPartyVPNPeers(apikey, organization['id'])
-    organization['thirdPartyVPNPeers']=thirdPartyVPNPeers
+    organization['thirdPartyVPNPeers'] = thirdPartyVPNPeers
 
     samlRoles = getSamlRoles(apikey, organization['id'])
-    organization['samlRoles']=samlRoles
+    organization['samlRoles'] = samlRoles
 
-if len(output_filename):
+if output_filename:
     file = open(output_filename, "w")
     file.write(json.dumps(organizations, indent=2, sort_keys=True))
     file.close()
     if verbose:
-        print "Wrote output to %s" % (output_filename)
+        print("Wrote output to {}".format(output_filename))
 else:
-    print json.dumps(organizations, indent=2, sort_keys=True)
+    print("{}".format(json.dumps(organizations, indent=2, sort_keys=True)))
