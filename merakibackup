@@ -245,6 +245,18 @@ def getL3FirewallRules(key, networkId):
     data = json.loads(content)
     return data
 
+def getL7FirewallRules(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/l7FirewallRules" % (networkId)
+    return getJson(key, url)
+
+def getL7ApplicationCategories(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/l7FirewallRules/applicationCategories" % (networkId)
+    return getJson(key, url)
+
+def getMalwareSettings(key, networkId):
+    url = "https://dashboard.meraki.com/api/v0/networks/%s/security/malwareSettings" % (networkId)
+    return getJson(key, url)
+
 def getSsids(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids" % (networkId)
     try:
@@ -441,7 +453,7 @@ for organization in organizations:
             uplink = getDeviceUplink(apikey, network['id'], device['serial'])
             device['uplink'] = uplink
 
-        if not device['model'].startswith('MV'):
+        if device['model'].startswith('MX') or device['model'].startswith('Z'):
             alertSettings = getAlertSettings(apikey, network['id'])
             network['alertSettings'] = alertSettings
 
@@ -462,6 +474,12 @@ for organization in organizations:
 
             l3FirewallRules = getL3FirewallRules(apikey, network['id'])
             network['l3FirewallRules'] = l3FirewallRules
+
+            l7FirewallRules = getL7FirewallRules(apikey, network['id'])
+            network['l7FirewallRules'] = l7FirewallRules
+
+#            l7ApplicationCategories = getL7ApplicationCategories(apikey, network['id'])
+#            network['l7ApplicationCategories'] = l7ApplicationCategories
 
             groupPolicies = getGroupPolicies(apikey, network['id'])
             network['groupPolicies'] = groupPolicies
