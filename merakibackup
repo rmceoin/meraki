@@ -122,13 +122,6 @@ def getL3FirewallRules(key: str, networkId: str) -> dict:
     url = "https://dashboard.meraki.com/api/v0/networks/%s/l3FirewallRules" % (networkId)
     return getJson(key, url, 404)
 
-<<<<<<< HEAD
-        print "Failed getting %s with error code %s" % (url, e.code)
-        return 0
-
-    data = json.loads(content)
-    return data
-
 def getL7FirewallRules(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/l7FirewallRules" % (networkId)
     return getJson(key, url)
@@ -141,10 +134,7 @@ def getMalwareSettings(key, networkId):
     url = "https://dashboard.meraki.com/api/v0/networks/%s/security/malwareSettings" % (networkId)
     return getJson(key, url)
 
-def getSsids(key, networkId):
-=======
 def getSsids(key: str, networkId: str) -> dict:
->>>>>>> 8f0c9bc... bump to python3 and major clean up to use getJson
     url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids" % (networkId)
     return getJson(key, url, 404)
 
@@ -222,21 +212,15 @@ for organization in organizations:
                     uplink = getDeviceUplink(apikey, network['id'], device['serial'])
                     device['uplink'] = uplink
 
-                    if not device['model'].startswith('MV'):
+                    if device['model'].startswith('MX') or device['model'].startswith('Z'):
                         alertSettings = getAlertSettings(apikey, network['id'])
                         network['alertSettings'] = alertSettings
 
                         connectivityMonitoringDestinations = getConnectivityMonitoringDestinations(apikey, network['id'])
                         network['connectivityMonitoringDestinations'] = connectivityMonitoringDestinations
 
-<<<<<<< HEAD
-        if device['model'].startswith('MX') or device['model'].startswith('Z'):
-            alertSettings = getAlertSettings(apikey, network['id'])
-            network['alertSettings'] = alertSettings
-=======
                         vlans = getVlans(apikey, network['id'])
                         network['vlans'] = vlans
->>>>>>> 8f0c9bc... bump to python3 and major clean up to use getJson
 
                         vlansEnabledState = getVlansEnabledState(apikey, network['id'])
                         network['vlansEnabledState'] = vlansEnabledState
@@ -256,19 +240,11 @@ for organization in organizations:
                         groupPolicies = getGroupPolicies(apikey, network['id'])
                         network['groupPolicies'] = groupPolicies
 
-<<<<<<< HEAD
-            l7FirewallRules = getL7FirewallRules(apikey, network['id'])
-            network['l7FirewallRules'] = l7FirewallRules
+                        l7ApplicationCategories = getL7ApplicationCategories(apikey, network['id'])
+                        network['l7ApplicationCategories'] = l7ApplicationCategories
 
-#            l7ApplicationCategories = getL7ApplicationCategories(apikey, network['id'])
-#            network['l7ApplicationCategories'] = l7ApplicationCategories
-
-            groupPolicies = getGroupPolicies(apikey, network['id'])
-            network['groupPolicies'] = groupPolicies
-=======
                         ssids = getSsids(apikey, network['id'])
                         network['ssids'] = ssids
->>>>>>> 8f0c9bc... bump to python3 and major clean up to use getJson
 
                         syslogServers = getSyslogServers(apikey, network['id'])
                         network['syslogServers'] = syslogServers
