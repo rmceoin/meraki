@@ -13,7 +13,7 @@ use the less security --apikey option.
 
 export MERAKI_APIKEY="the_api_key_here"
 
-curl -s -L -H "X-Cisco-Meraki-API-Key: $apikey" -X GET \
+curl -s -L -H "X-Cisco-Meraki-API-Key: $MERAKI_APIKEY" -X GET \
  -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
 
 """
@@ -35,7 +35,7 @@ def getJson(key: str, url: str, okay_code: int = None) -> dict:
             'Content-Type': 'application/json; charset=UTF-8',
             'X-Cisco-Meraki-API-Key': key
         }
-
+        print("message_headers={}".format(message_headers))
         http_obj = Http()
 
         response = http_obj.request(
@@ -45,6 +45,9 @@ def getJson(key: str, url: str, okay_code: int = None) -> dict:
         )
     except HttpLib2Error as exception:
         print("Exception getting {} with error code {}".format(url, exception))
+        return None
+    except ConnectionResetError as exception:
+        print("Connection error getting {} with error code {}".format(url, exception))
         return None
 
     headers = response[0]
@@ -191,6 +194,10 @@ if not apikey:
     sys.exit(2)
 
 organizations = getOrganizations(apikey)
+if not organizations:
+    print("No organizations!")
+    sys.exit(1)
+
 for organization in organizations:
     if verbose:
         print("Organization: {}".format(organization['name']))
