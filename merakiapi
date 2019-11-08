@@ -472,10 +472,12 @@ def listLldpCdpCmd(key, orgid, networkName, whichType):
                     elif 'systemName' in neighbor:
                         name = neighbor['systemName']
 
-                    print("%s,%s,%s,%s,%s" % (network['name'],neighbor['sourcePort'],\
-                            neighbor['portId'], name, ip))
-            if len(networkToList):
-                return
+                    print("%s,%s,%s,%s,%s,%s" % (network['name'],
+                          device['name'],
+                          neighbor['sourcePort'],\
+                          neighbor['portId'], name, ip))
+        if len(networkToList):
+            return
 
 def listVlans(apikey, orgid, networkName):
     networks = getNetworks(apikey, orgid)
