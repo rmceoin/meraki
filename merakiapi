@@ -472,8 +472,11 @@ def listLldpCdpCmd(key, orgid, networkName, whichType):
                     elif 'systemName' in neighbor:
                         name = neighbor['systemName']
 
+                    device_name = ''
+                    if 'name' in device:
+                        device_name = device['name']
                     print("%s,%s,%s,%s,%s,%s" % (network['name'],
-                          device['name'],
+                          device_name,
                           neighbor['sourcePort'],\
                           neighbor['portId'], name, ip))
         if len(networkToList):
