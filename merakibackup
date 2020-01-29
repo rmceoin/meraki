@@ -8,12 +8,12 @@ retreives data from all known API endpoints and then outputs as
 a single JSON array.
 
 Before running the script, it's best to put the APIKEY
-into the MERAKI_APIKEY environment variable.  Otherwise
+into the MERAKI_DASHBOARD_API_KEY environment variable.  Otherwise
 use the less security --apikey option.
 
-export MERAKI_APIKEY="the_api_key_here"
+export MERAKI_DASHBOARD_API_KEY="the_api_key_here"
 
-curl -s -L -H "X-Cisco-Meraki-API-Key: $MERAKI_APIKEY" -X GET \
+curl -s -L -H "X-Cisco-Meraki-API-Key: $MERAKI_DASHBOARD_API_KEY" -X GET \
  -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
 
 """
@@ -22,274 +22,302 @@ import getopt
 import json
 import os
 import sys
-from httplib2 import Http, HttpLib2Error
 
-DEBUG = False
-apikey = ''
-verbose = False
-output_filename = ''
+import meraki
 
-def getJson(key: str, url: str, okay_code: int = None) -> dict:
-    try:
-        message_headers = {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'X-Cisco-Meraki-API-Key': key
-        }
-        print("message_headers={}".format(message_headers))
-        http_obj = Http()
+class MerakiBackup:
+    """
+    Create a backup JSON of a Meraki dashboard
+    """
+    def __init__(self, verbose=False):
+        self.configuration = {}
+        self.verbose = verbose
+        self.debug = False
+        self.apikey = None
+        self.output_filename = None
+        self.dashboard = None
 
-        response = http_obj.request(
-            uri=url,
-            method='GET',
-            headers=message_headers,
-        )
-    except HttpLib2Error as exception:
-        print("Exception getting {} with error code {}".format(url, exception))
-        return None
-    except ConnectionResetError as exception:
-        print("Connection error getting {} with error code {}".format(url, exception))
-        return None
-
-    headers = response[0]
-    if headers.status != 200:
-        if okay_code and okay_code == headers.status:
+    def getNetworkVlans(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.vlans.getNetworkVlans(networkId)
+        except meraki.exceptions.APIError:
             return None
-        if verbose:
-            print("Failed getting {} with error code {}".format(url, headers.status))
-        return None
 
-    data = json.loads(response[1])
-    if len(data) == 0:
-        if DEBUG:
-            print("Empty response for {}".format(url))
-        return None
-    return data
+    def getNetworkStaticRoutes(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_static_routes.getNetworkStaticRoutes(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getOrganizations(key: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/organizations"
-    return getJson(key, url)
+    def getNetworkSsids(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.ssids.getNetworkSsids(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getNetworks(key: str, orgid: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
-    return getJson(key, url)
+    def getNetworkDeviceLldp_cdp(self, networkId: str, serial: str) -> dict:
+        try:
+            return self.dashboard.devices.getNetworkDeviceLldp_cdp(networkId, serial, timespan=3600)
+        except meraki.exceptions.APIError:
+            return None
 
-def getAlertSettings(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/alertSettings" % (networkId)
-    return getJson(key, url)
+    def getNetworkWirelessSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.wireless_settings.getNetworkWirelessSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getConnectivityMonitoringDestinations(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/connectivityMonitoringDestinations" % (networkId)
-    return getJson(key, url, 400)
+    def getNetworkSecurityIntrusionSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.intrusion_settings.getNetworkSecurityIntrusionSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getContentFiltering(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/contentFiltering" % (networkId)
-    return getJson(key, url, 400)
+    def getNetworkConnectivityMonitoringDestinations(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.connectivity_monitoring_destinations.getNetworkConnectivityMonitoringDestinations(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getBrandingPolicies(key: str, orgid: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/brandingPolicies" % (orgid)
-    return getJson(key, url, 400)
+    def getNetworkVlansEnabledState(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.vlans.getNetworkVlansEnabledState(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getVpnFirewallRules(key: str, orgid: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/vpnFirewallRules" % (orgid)
-    return getJson(key, url)
+    def getNetworkFirewalledServices(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.firewalled_services.getNetworkFirewalledServices(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getOneToOneNatRules(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToOneNatRules" % (networkId)
-    return getJson(key, url, 400)
+    def getNetworkSiteToSiteVpn(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.networks.getNetworkSiteToSiteVpn(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getOneToManyNatRules(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
-    return getJson(key, url, 400)
+    def getNetworkL3FirewallRules(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_l3_firewall.getNetworkL3FirewallRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getPortForwardingRules(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToManyNatRules" % (networkId)
-    return getJson(key, url)
+    def getNetworkGroupPolicies(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.group_policies.getNetworkGroupPolicies(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getVlans(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/vlans" % (networkId)
-    return getJson(key, url, 400)
+    def getNetworkSecurityMalwareSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.malware_settings.getNetworkSecurityMalwareSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getVlansEnabledState(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/vlansEnabledState" % (networkId)
-    return getJson(key, url, 400)
+    def getNetworkWarmSpareSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_warm_spare_settings.getNetworkWarmSpareSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getStaticRoutes(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
-    return getJson(key, url, 400)
+    def getNetworkL7FirewallRulesApplicationCategories(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_l7_application_categories.getNetworkL7FirewallRulesApplicationCategories(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getSiteToSiteVpn(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/siteToSiteVpn" % (networkId)
-    return getJson(key, url, 404)
+    def getNetworkContentFiltering(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.content_filtering_rules.getNetworkContentFiltering(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getL3FirewallRules(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/l3FirewallRules" % (networkId)
-    return getJson(key, url, 404)
+    def getNetworkOneToOneNatRules(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_1_1_nat_rules.getNetworkOneToOneNatRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getL7FirewallRules(key, networkId):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/l7FirewallRules" % (networkId)
-    return getJson(key, url)
+    def getNetworkOneToManyNatRules(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_1_many_nat_rules.getNetworkOneToManyNatRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getL7ApplicationCategories(key, networkId):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/l7FirewallRules/applicationCategories" % (networkId)
-    return getJson(key, url)
+    def getNetworkPortForwardingRules(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_port_forwarding_rules.getNetworkPortForwardingRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getMalwareSettings(key, networkId):
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/security/malwareSettings" % (networkId)
-    return getJson(key, url)
+    def getNetworkSnmpSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.snmp_settings.getNetworkSnmpSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
 
-def getSsids(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids" % (networkId)
-    return getJson(key, url, 404)
+    def getNetworkDeviceManagementInterfaceSettings(self, networkId: str, serial: str) -> dict:
+        try:
+            return self.dashboard.management_interface_settings.getNetworkDeviceManagementInterfaceSettings(networkId, serial)
+        except meraki.exceptions.APIError:
+            return None
 
-def getGroupPolicies(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/groupPolicies" % (networkId)
-    return getJson(key, url)
+    def backup(self, only_organization_id: None):
 
-def getDevices(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/devices" % (networkId)
-    return getJson(key, url)
+        organizations = self.dashboard.organizations.getOrganizations()
+        if not organizations:
+            print("No organizations found")
+            return
 
-def getDeviceUplink(key: str, networkId: str, serial: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/devices/%s/uplink" % (networkId, serial)
-    return getJson(key, url)
+        for organization in organizations:
+            if self.verbose:
+                #print("org={}".format(organizations))
+                print("Organization: {} {}".format(organization['id'], organization['name']))
+            if only_organization_id and only_organization_id != organization['id']:
+                if self.verbose:
+                    print("skipping")
+                    continue
+            networks = self.dashboard.networks.getOrganizationNetworks(organization['id'])
+            if networks:
+                for network in networks:
+                    if self.verbose:
+                        print("Network: {}".format(network['name']))
 
-def getFirewalledServices(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/firewalledServices" % (networkId)
-    return getJson(key, url, 400)
+                    alertSettings = self.dashboard.alert_settings.getNetworkAlertSettings(network['id'])
+                    network['alertSettings'] = alertSettings
 
-def getSnmp(key: str, organizationId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/snmp" % (organizationId)
-    return getJson(key, url)
+                    httpServers = self.dashboard.http_servers.getNetworkHttpServers(network['id'])
+                    network['httpServers'] = httpServers
 
-def getThirdPartyVPNPeers(key: str, organizationId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/thirdPartyVPNPeers" % (organizationId)
-    return getJson(key, url)
+                    network['connectivityMonitoringDestinations'] = self.getNetworkConnectivityMonitoringDestinations(network['id'])
 
-def getSyslogServers(key: str, networkId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/networks/%s/syslogServers" % (networkId)
-    return getJson(key, url)
+                    vlansEnabledState = self.getNetworkVlansEnabledState(network['id'])
+                    network['vlansEnabledState'] = vlansEnabledState
 
-def getSamlRoles(key: str, organizationId: str) -> dict:
-    url = "https://dashboard.meraki.com/api/v0/organizations/%s/samlRoles" % (organizationId)
-    return getJson(key, url)
+                    if vlansEnabledState and vlansEnabledState['enabled']:
+                        network['vlans'] = self.getNetworkVlans(network['id'])
 
-options, remainder = getopt.getopt(sys.argv[1:], 'a:o:v', [
-    'output=',
-    'apikey=',
-    'verbose',
-    ])
-for opt, arg in options:
-    if opt in ('-o', '--output'):
-        output_filename = arg
-    elif opt in ('-a', '--apikey'):
-        apikey = arg
-    elif opt in ('-v', '--verbose'):
-        verbose = True
+                    network['firewalledServices'] = self.getNetworkFirewalledServices(network['id'])
 
-if 'MERAKI_APIKEY' in os.environ:
-    apikey = os.environ['MERAKI_APIKEY']
+                    network['staticRoutes'] = self.getNetworkStaticRoutes(network['id'])
 
-if not apikey:
-    print("Missing apikey")
-    sys.exit(2)
+                    network['siteToSiteVpn'] = self.getNetworkSiteToSiteVpn(network['id'])
 
-organizations = getOrganizations(apikey)
-if not organizations:
-    print("No organizations!")
-    sys.exit(1)
+                    network['l3FirewallRules'] = self.getNetworkL3FirewallRules(network['id'])
 
-for organization in organizations:
-    if verbose:
-        print("Organization: {}".format(organization['name']))
-    networks = getNetworks(apikey, organization['id'])
-    if networks:
-        for network in networks:
-            if verbose:
-                print("Network: {}".format(network['name']))
+                    network['groupPolicies'] = self.getNetworkGroupPolicies(network['id'])
 
-            devices = getDevices(apikey, network['id'])
-            network['devices'] = devices
-            if devices:
-                for device in devices:
-                    device_name = None
-                    if 'name' in device:
-                        device_name = device['name']
-                    if verbose:
-                        print(" Device: {}".format(device_name))
-                    uplink = getDeviceUplink(apikey, network['id'], device['serial'])
-                    device['uplink'] = uplink
+                    network['intrusionSettings'] = self.getNetworkSecurityIntrusionSettings(network['id'])
 
-                    if device['model'].startswith('MX') or device['model'].startswith('Z'):
-                        alertSettings = getAlertSettings(apikey, network['id'])
-                        network['alertSettings'] = alertSettings
+                    network['malwareSettings'] = self.getNetworkSecurityMalwareSettings(network['id'])
 
-                        connectivityMonitoringDestinations = getConnectivityMonitoringDestinations(apikey, network['id'])
-                        network['connectivityMonitoringDestinations'] = connectivityMonitoringDestinations
+                    network['warmSpareSettings'] = self.getNetworkWarmSpareSettings(network['id'])
 
-                        vlans = getVlans(apikey, network['id'])
-                        network['vlans'] = vlans
+                    network['l7ApplicationCategories'] = self.getNetworkL7FirewallRulesApplicationCategories(network['id'])
 
-                        vlansEnabledState = getVlansEnabledState(apikey, network['id'])
-                        network['vlansEnabledState'] = vlansEnabledState
+                    network['ssids'] = self.getNetworkSsids(network['id'])
 
-                        firewalledServices = getFirewalledServices(apikey, network['id'])
-                        network['firewalledServices'] = firewalledServices
+                    syslogServers = self.dashboard.syslog_servers.getNetworkSyslogServers(network['id'])
+                    network['syslogServers'] = syslogServers
 
-                        staticRoutes = getStaticRoutes(apikey, network['id'])
-                        network['staticRoutes'] = staticRoutes
+                    network['contentFiltering'] = self.getNetworkContentFiltering(network['id'])
 
-                        siteToSiteVpn = getSiteToSiteVpn(apikey, network['id'])
-                        network['siteToSiteVpn'] = siteToSiteVpn
+                    network['oneToOneNatRules'] = self.getNetworkOneToOneNatRules(network['id'])
 
-                        l3FirewallRules = getL3FirewallRules(apikey, network['id'])
-                        network['l3FirewallRules'] = l3FirewallRules
+                    network['oneToManyNatRules'] = self.getNetworkOneToManyNatRules(network['id'])
 
-                        groupPolicies = getGroupPolicies(apikey, network['id'])
-                        network['groupPolicies'] = groupPolicies
+                    network['portForwardingRules'] = self.getNetworkPortForwardingRules(network['id'])
 
-                        l7ApplicationCategories = getL7ApplicationCategories(apikey, network['id'])
-                        network['l7ApplicationCategories'] = l7ApplicationCategories
+                    network['snmp'] = self.getNetworkSnmpSettings(network['id'])
 
-                        ssids = getSsids(apikey, network['id'])
-                        network['ssids'] = ssids
+                    network['wirelessSettings'] = self.getNetworkWirelessSettings(network['id'])
 
-                        syslogServers = getSyslogServers(apikey, network['id'])
-                        network['syslogServers'] = syslogServers
+                    devices = self.dashboard.devices.getNetworkDevices(network['id'])
+                    network['devices'] = devices
+                    if devices:
+                        for device in devices:
+                            device_name = None
+                            if 'name' in device:
+                                device_name = device['name']
+                            if self.verbose:
+                                print(" Device: {}".format(device_name))
+                            uplink = self.dashboard.devices.getNetworkDeviceUplink(network['id'], device['serial'])
+                            device['uplink'] = uplink
 
-                        contentFiltering = getContentFiltering(apikey, network['id'])
-                        network['contentFiltering'] = contentFiltering
+                            lldp_cdp = self.getNetworkDeviceLldp_cdp(network['id'], device['serial'])
+                            device['lldp_cdp'] = lldp_cdp
 
-                        oneToOneNatRules = getOneToOneNatRules(apikey, network['id'])
-                        network['oneToOneNatRules'] = oneToOneNatRules
+                            device['managementInterfaceSettings'] = self.getNetworkDeviceManagementInterfaceSettings(network['id'], device['serial'])
 
-                        oneToManyNatRules = getOneToManyNatRules(apikey, network['id'])
-                        network['oneToManyNatRules'] = oneToManyNatRules
+            organization['networks'] = networks
 
-                        portForwardingRules = getPortForwardingRules(apikey, network['id'])
-                        network['portForwardingRules'] = portForwardingRules
+            admins = self.dashboard.admins.getOrganizationAdmins(organization['id'])
+            organization['admins'] = admins
 
-    organization['networks'] = networks
+            organizationIntrusionSettings = self.dashboard.intrusion_settings.getOrganizationSecurityIntrusionSettings(organization['id'])
+            organization['intrusionSettings'] = organizationIntrusionSettings
 
-    brandingPolicies = getBrandingPolicies(apikey, organization['id'])
-    organization['brandingPolicies'] = brandingPolicies
+            vpnFirewallRules = self.dashboard.mx_vpn_firewall.getOrganizationVpnFirewallRules(organization['id'])
+            organization['vpnFirewallRules'] = vpnFirewallRules
 
-    vpnFirewallRules = getVpnFirewallRules(apikey, organization['id'])
-    organization['vpnFirewallRules'] = vpnFirewallRules
+            thirdPartyVPNPeers = self.dashboard.organizations.getOrganizationThirdPartyVPNPeers(organization['id'])
+            organization['thirdPartyVPNPeers'] = thirdPartyVPNPeers
 
-    snmp = getSnmp(apikey, organization['id'])
-    organization['snmp'] = snmp
+            samlRoles = self.dashboard.saml_roles.getOrganizationSamlRoles(organization['id'])
+            organization['samlRoles'] = samlRoles
 
-    thirdPartyVPNPeers = getThirdPartyVPNPeers(apikey, organization['id'])
-    organization['thirdPartyVPNPeers'] = thirdPartyVPNPeers
+        if self.output_filename:
+            file = open(self.output_filename, "w")
+            file.write(json.dumps(organizations, indent=2, sort_keys=True))
+            file.close()
+            if self.verbose:
+                print("Wrote output to {}".format(self.output_filename))
+        else:
+            print("{}".format(json.dumps(organizations, indent=2, sort_keys=True)))
 
-    samlRoles = getSamlRoles(apikey, organization['id'])
-    organization['samlRoles'] = samlRoles
+    def main(self):
+        """
+        Parse command line options and perform backup.
+        """
+        organization = None
+        options = getopt.getopt(sys.argv[1:],
+                                'a:o:w:v',
+                                [
+                                    'apikey=',
+                                    'organization=',
+                                    'write=',
+                                    'verbose',
+                                ])[0]
 
-if output_filename:
-    file = open(output_filename, "w")
-    file.write(json.dumps(organizations, indent=2, sort_keys=True))
-    file.close()
-    if verbose:
-        print("Wrote output to {}".format(output_filename))
-else:
-    print("{}".format(json.dumps(organizations, indent=2, sort_keys=True)))
+        for opt, arg in options:
+            if opt in ('-w', '--write'):
+                self.output_filename = arg
+            elif opt in ('-a', '--apikey'):
+                self.apikey = arg
+            elif opt in ('-o', '--organization'):
+                organization = arg
+            elif opt in ('-v', '--verbose'):
+                self.verbose = True
+
+        if 'MERAKI_APIKEY' in os.environ:
+            self.apikey = os.environ['MERAKI_APIKEY']
+        if 'MERAKI_DASHBOARD_API_KEY' in os.environ:
+            self.apikey = os.environ['MERAKI_DASHBOARD_API_KEY']
+
+        if not self.apikey:
+            print("Missing apikey")
+            sys.exit(2)
+
+        try:
+            self.dashboard = meraki.DashboardAPI(api_key=self.apikey,
+                                                 output_log=self.debug,
+                                                 print_console=self.debug)
+        except meraki.exceptions.APIKeyError as exception:
+            print("Error: {}".format(exception))
+            return
+
+        self.backup(organization)
+
+if __name__ == "__main__":
+    MerakiBackup().main()
