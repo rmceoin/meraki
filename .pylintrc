@@ -4,5 +4,10 @@
 disable=
     invalid-name,
     line-too-long,
-    missing-docstring
+    missing-docstring,
+    too-many-nested-blocks,
+    too-many-branches,
+    too-many-locals,
+    too-many-public-methods,
+    too-many-statements
 
