@@ -21,9 +21,11 @@ curl -s -L -H "X-Cisco-Meraki-API-Key: $MERAKI_DASHBOARD_API_KEY" -X GET \
 import getopt
 import json
 import os
+import re
 import sys
 
 import meraki
+
 
 class MerakiBackup:
     """
@@ -163,7 +165,11 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
-    def backup(self, only_organization_id: None):
+    def backup(self, only_organization_id: None, networkFilter: str):
+
+        if networkFilter:
+            filterRe = "^" + networkFilter + ".*"
+            regex = re.compile(filterRe, flags=re.IGNORECASE)
 
         organizations = self.dashboard.organizations.getOrganizations()
         if not organizations:
@@ -183,6 +189,9 @@ class MerakiBackup:
                 for network in networks:
                     if self.verbose:
                         print("Network: {}".format(network['name']))
+
+                    if networkFilter and not regex.match(network['name']):
+                        continue
 
                     alertSettings = self.dashboard.alert_settings.getNetworkAlertSettings(network['id'])
                     network['alertSettings'] = alertSettings
@@ -281,10 +290,12 @@ class MerakiBackup:
         Parse command line options and perform backup.
         """
         organization = None
+        networkFilter = None
         options = getopt.getopt(sys.argv[1:],
-                                'a:o:w:v',
+                                'a:f:o:w:v',
                                 [
                                     'apikey=',
+                                    'filter=',
                                     'organization=',
                                     'write=',
                                     'verbose',
@@ -297,6 +308,8 @@ class MerakiBackup:
                 self.apikey = arg
             elif opt in ('-o', '--organization'):
                 organization = arg
+            elif opt in ('-f', '--filter'):
+                networkFilter = arg
             elif opt in ('-v', '--verbose'):
                 self.verbose = True
 
@@ -317,7 +330,7 @@ class MerakiBackup:
             print("Error: {}".format(exception))
             return
 
-        self.backup(organization)
+        self.backup(organization, networkFilter)
 
 if __name__ == "__main__":
     MerakiBackup().main()
