@@ -171,6 +171,12 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
+    def getNetworkAppliancePorts(self, networkId: str):
+        try:
+            return self.dashboard.mx_vlan_ports.getNetworkAppliancePorts(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
     def backup(self, only_organization_id: None, networkFilter: str):
 
         if networkFilter:
@@ -245,6 +251,8 @@ class MerakiBackup:
                     network['oneToManyNatRules'] = self.getNetworkOneToManyNatRules(network['id'])
 
                     network['portForwardingRules'] = self.getNetworkPortForwardingRules(network['id'])
+
+                    network['appliancePorts'] = self.getNetworkAppliancePorts(network['id'])
 
                     network['snmp'] = self.getNetworkSnmpSettings(network['id'])
 
