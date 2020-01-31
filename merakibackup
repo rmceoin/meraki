@@ -59,7 +59,7 @@ class MerakiBackup:
 
     def getNetworkDeviceLldp_cdp(self, networkId: str, serial: str) -> dict:
         try:
-            return self.dashboard.devices.getNetworkDeviceLldp_cdp(networkId, serial, timespan=3600)
+            return self.dashboard.devices.getNetworkDeviceLldp_cdp(networkId, serial, timespan=10800)
         except meraki.exceptions.APIError:
             return None
 
