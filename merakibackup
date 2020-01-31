@@ -123,6 +123,12 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
+    def getNetworkL7FirewallRules(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_l7_firewall.getNetworkL7FirewallRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
     def getNetworkL7FirewallRulesApplicationCategories(self, networkId: str) -> dict:
         try:
             return self.dashboard.mx_l7_application_categories.getNetworkL7FirewallRulesApplicationCategories(networkId)
@@ -222,6 +228,8 @@ class MerakiBackup:
                     network['malwareSettings'] = self.getNetworkSecurityMalwareSettings(network['id'])
 
                     network['warmSpareSettings'] = self.getNetworkWarmSpareSettings(network['id'])
+
+                    network['l7FirewallRules'] = self.getNetworkL7FirewallRules(network['id'])
 
                     network['l7ApplicationCategories'] = self.getNetworkL7FirewallRulesApplicationCategories(network['id'])
 
