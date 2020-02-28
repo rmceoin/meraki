@@ -1,0 +1,301 @@
+#!/usr/bin/env python3
+
+"""
+meraki2strongswan
+
+Iterates through networks and generate a strongSwan configuration
+to allow 3rd Party VPN.
+
+Before running the script, it's best to put the APIKEY
+into the MERAKI_DASHBOARD_API_KEY environment variable.  Otherwise
+use the less security --apikey option.
+
+export MERAKI_DASHBOARD_API_KEY="the_api_key_here"
+
+curl -s -L -H "X-Cisco-Meraki-API-Key: $MERAKI_DASHBOARD_API_KEY" -X GET \
+ -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
+
+"""
+
+import getopt
+import json
+import os
+import re
+import sys
+
+import meraki
+
+
+class Meraki2strongSwan:
+    """
+    Create a backup JSON of a Meraki dashboard
+    """
+    def __init__(self, verbose=False):
+        self.configuration = {}
+        self.verbose = verbose
+        self.debug = False
+        self.apikey = None
+        self.output_filename = None
+        self.dashboard = None
+        self.ipaddress = None
+        self.subnets = None
+
+    def clean_conn_name(self, conn_name: str) -> str:
+        """Strip and replace any odd characters from a connection name
+        """
+        # strip leading and trailing whitespace.  Also lowercase the string.
+        newname = conn_name.lower().strip()
+
+        bad_set = '[^a-z0-9_-]'
+        pattern = re.compile(bad_set)
+        newname = pattern.sub('-', newname)
+
+        return newname
+
+    def getNetworkSiteToSiteVpn(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.networks.getNetworkSiteToSiteVpn(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkSiteToSiteVpnSubnets(self, networkId: str) -> dict:
+
+        vpn_subnets = []
+
+        siteToSiteVpn = self.getNetworkSiteToSiteVpn(networkId)
+
+        if siteToSiteVpn and 'subnets' in siteToSiteVpn:
+            for subnet in siteToSiteVpn['subnets']:
+                if subnet['useVpn']:
+                    vpn_subnets.append(subnet['localSubnet'])
+        return vpn_subnets
+
+    def getNetworkWarmSpareSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_warm_spare_settings.getNetworkWarmSpareSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def output_connection(self, network: dict, network_subnets: list, device: dict, uplink: dict):
+        #print("network: {}".format(network))
+        #print("device: {}".format(device))
+        #print("uplink: {}".format(uplink))
+        #print("network_subnets: {}".format(network_subnets))
+
+        network_name = network['name']
+
+        device_name = device['serial']
+        if 'name' in device:
+            device_name = device['name']
+
+        conn_name = "{}_{}_{}".format(self.clean_conn_name(network_name),
+                                      self.clean_conn_name(device_name),
+                                      self.clean_conn_name(uplink['interface']))
+
+        if not network_subnets:
+            print("\n# No subnets in {}".format(conn_name))
+            return
+        subnets = sorted(network_subnets)
+
+        if 'publicIp' in uplink:
+            print("\nconn {}".format(conn_name))
+            print("        auto=start")
+            print("        dpdaction=restart")
+            print()
+            print("        # Local")
+            print("        left=%any")
+            print("        leftid={}".format(self.ipaddress))
+            print("        leftsubnet={}".format(self.subnets))
+            print("        leftauth=psk")
+            print()
+            print("        # Remote")
+            print("        right={}".format(uplink['publicIp']))
+            if uplink['ip'] != uplink['publicIp']:
+                # we're behind a NAT
+                print("        rightid={}".format(uplink['ip']))
+            print("        rightsubnet={}".format(subnets.pop(0)))
+            print("        rightauth=psk")
+            for subnet in subnets:
+                print("\nconn {}_{}".format(conn_name, self.clean_conn_name(subnet)))
+                print("        also={}".format(conn_name))
+                print("        rightsubnet={}".format(subnet))
+        else:
+            print("\n# no publicIp for {}".format(conn_name))
+
+    def print_connections(self,
+                          conn_name: str,
+                          remote_ipaddress: str,
+                          remote_subnets: list
+                         ):
+        subnets = sorted(remote_subnets, key=lambda ip: [int(m) for m in re.findall(r'\d+', ip)])
+
+        print("\nconn {}".format(conn_name))
+        print("        auto=route")
+        print("        dpdaction=restart")
+        print()
+        print("        # Local")
+        print("        left=%any")
+        print("        leftid={}".format(self.ipaddress))
+        print("        leftsubnet={}".format(self.subnets))
+        print("        leftauth=psk")
+        print()
+        print("        # Remote")
+        print("        right={}".format(remote_ipaddress))
+        print("        rightsubnet={}".format(subnets.pop(0)))
+        print("        rightauth=psk")
+        for subnet in subnets:
+            print("\nconn {}_{}".format(conn_name, self.clean_conn_name(subnet)))
+            print("        also={}".format(conn_name))
+            print("        rightsubnet={}".format(subnet))
+
+    def handleWarmSpare(self, network: dict, subnets: list, warmSpareSettings: dict):
+        """[summary]
+        
+        Arguments:
+            network {dict} -- [description]
+            subnets {list} -- [description]
+            warmSpareSettings {dict} --
+              {'enabled': True,
+              'primarySerial': 'xxx-xxxx-xxx',
+              'spareSerial': 'xxxx-xxx-xxx',
+              'uplinkMode': 'virtual',
+              'wan1': {'ip': '12.x.x.x', 'subnet': '12.x.x.x/29'},
+              'wan2': {'ip': '4.x.x.x', 'subnet': '4.x.x.x/29'}
+              }
+        """
+        if warmSpareSettings['uplinkMode'] == 'virtual':
+            print("# output warmspare : {}".format(network['name']))
+            for wan in ['wan1', 'wan2']:
+                if wan in warmSpareSettings and 'ip' in warmSpareSettings[wan]:
+                    conn_name = "{}_{}".format(self.clean_conn_name(network['name']),
+                                               wan)
+
+                    remote_ipaddress = warmSpareSettings[wan]['ip']
+                    self.print_connections(conn_name, remote_ipaddress, subnets)
+        else:
+            print("# unknown warmspare uplinkMode: {}".format(network['name']))
+
+    def generate_tunnels(self, only_organization_id: str, networkFilter: str):
+
+        if networkFilter:
+            filterRe = "^" + networkFilter + ".*"
+            regex = re.compile(filterRe, flags=re.IGNORECASE)
+
+        organizations = self.dashboard.organizations.getOrganizations()
+        if not organizations:
+            print("No organizations found")
+            return
+
+        for organization in organizations:
+            if self.verbose:
+                #print("org={}".format(organizations))
+                print("Organization: {} {}".format(organization['id'], organization['name']))
+            if only_organization_id and only_organization_id != organization['id']:
+                if self.verbose:
+                    print("skipping")
+                continue
+            networks = self.dashboard.networks.getOrganizationNetworks(organization['id'])
+            if networks:
+                for network in networks:
+                    if self.verbose:
+                        print("Network: {}".format(network['name']))
+
+                    if networkFilter and not regex.match(network['name']):
+                        continue
+
+                    subnets = self.getNetworkSiteToSiteVpnSubnets(network['id'])
+
+                    warmSpareSettings = self.getNetworkWarmSpareSettings(network['id'])
+                    print("warmSpareSettings={}".format(warmSpareSettings))
+                    if warmSpareSettings and warmSpareSettings['enabled']:
+                        self.handleWarmSpare(network, subnets, warmSpareSettings)
+                    else:
+
+                        devices = self.dashboard.devices.getNetworkDevices(network['id'])
+    #                    network['devices'] = devices
+                        if devices:
+                            for device in devices:
+                                device_name = None
+                                if 'name' in device:
+                                    device_name = device['name']
+                                if self.verbose:
+                                    print(" Device: {}".format(device_name))
+                                uplinks = self.dashboard.devices.getNetworkDeviceUplink(network['id'], device['serial'])
+                                if self.verbose:
+                                    print("   Uplinks: {}".format(uplinks))
+                                if uplinks:
+                                    for uplink in uplinks:
+                                        self.output_connection(network, subnets, device, uplink)
+
+#            thirdPartyVPNPeers = self.dashboard.organizations.getOrganizationThirdPartyVPNPeers(organization['id'])
+#            organization['thirdPartyVPNPeers'] = thirdPartyVPNPeers
+
+        if self.output_filename:
+            file = open(self.output_filename, "w")
+            file.write(json.dumps(organizations, indent=2, sort_keys=True))
+            file.close()
+            if self.verbose:
+                print("Wrote output to {}".format(self.output_filename))
+
+    def main(self):
+        """
+        Parse command line options and perform backup.
+        """
+        organization = None
+        networkFilter = None
+        options = getopt.getopt(sys.argv[1:],
+                                'a:f:i:o:s:w:v',
+                                [
+                                    'apikey=',
+                                    'filter=',
+                                    'ip=',
+                                    'organization=',
+                                    'write=',
+                                    'verbose',
+                                ])[0]
+
+        for opt, arg in options:
+            if opt in ('-w', '--write'):
+                self.output_filename = arg
+            elif opt in ('-a', '--apikey'):
+                self.apikey = arg
+            elif opt in ('-f', '--filter'):
+                networkFilter = arg
+            elif opt in ('-i', '--ip'):
+                self.ipaddress = arg
+            elif opt in ('-o', '--organization'):
+                organization = arg
+            elif opt in ('-s', '--subnets'):
+                self.subnets = arg
+            elif opt in ('-v', '--verbose'):
+                self.verbose = True
+
+        if 'MERAKI_APIKEY' in os.environ:
+            self.apikey = os.environ['MERAKI_APIKEY']
+        if 'MERAKI_DASHBOARD_API_KEY' in os.environ:
+            self.apikey = os.environ['MERAKI_DASHBOARD_API_KEY']
+
+        if not self.apikey:
+            print("Missing apikey")
+            sys.exit(2)
+
+        if not self.ipaddress:
+            print("Missing ipaddress")
+            sys.exit(2)
+
+        if not self.subnets:
+            print("Missing subnets")
+            sys.exit(2)
+
+        try:
+            self.dashboard = meraki.DashboardAPI(api_key=self.apikey,
+                                                 output_log=self.debug,
+                                                 print_console=self.debug)
+        except meraki.exceptions.APIKeyError as exception:
+            print("Error: {}".format(exception))
+            return
+
+        self.generate_tunnels(organization, networkFilter)
+
+if __name__ == "__main__":
+    Meraki2strongSwan().main()
