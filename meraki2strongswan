@@ -15,6 +15,7 @@ export MERAKI_DASHBOARD_API_KEY="the_api_key_here"
 curl -s -L -H "X-Cisco-Meraki-API-Key: $MERAKI_DASHBOARD_API_KEY" -X GET \
  -H 'Content-Type: application/json' 'https://dashboard.meraki.com/api/v0/organizations' | jq '.'
 
+./meraki2strongswan -o 123456 -f my-network -i 1.2.3.4 -s 10.1.1.0/24
 """
 
 import getopt
@@ -25,13 +26,11 @@ import sys
 
 import meraki
 
-
 class Meraki2strongSwan:
     """
     Create a backup JSON of a Meraki dashboard
     """
     def __init__(self, verbose=False):
-        self.configuration = {}
         self.verbose = verbose
         self.debug = False
         self.apikey = None
@@ -39,8 +38,10 @@ class Meraki2strongSwan:
         self.dashboard = None
         self.ipaddress = None
         self.subnets = None
+        self.tag = None
 
-    def clean_conn_name(self, conn_name: str) -> str:
+    @staticmethod
+    def clean_conn_name(conn_name: str) -> str:
         """Strip and replace any odd characters from a connection name
         """
         # strip leading and trailing whitespace.  Also lowercase the string.
@@ -100,6 +101,7 @@ class Meraki2strongSwan:
         if 'publicIp' in uplink:
             print("\nconn {}".format(conn_name))
             print("        auto=start")
+            print("        # Dead Peer Detection")
             print("        dpdaction=restart")
             print()
             print("        # Local")
@@ -150,7 +152,7 @@ class Meraki2strongSwan:
 
     def handleWarmSpare(self, network: dict, subnets: list, warmSpareSettings: dict):
         """[summary]
-        
+
         Arguments:
             network {dict} -- [description]
             subnets {list} -- [description]
@@ -198,15 +200,26 @@ class Meraki2strongSwan:
             if networks:
                 for network in networks:
                     if self.verbose:
-                        print("Network: {}".format(network['name']))
+                        print("Network name: {}".format(network['name']))
 
                     if networkFilter and not regex.match(network['name']):
                         continue
+                    if self.verbose:
+                        print("Network: {}".format(network))
+                    if network['type'] != "appliance":
+                        continue
+
+                    if self.tag:
+                        if not network['tags']:
+                            continue
+                        if self.tag not in network['tags']:
+                            continue
 
                     subnets = self.getNetworkSiteToSiteVpnSubnets(network['id'])
 
                     warmSpareSettings = self.getNetworkWarmSpareSettings(network['id'])
-                    print("warmSpareSettings={}".format(warmSpareSettings))
+                    if self.verbose:
+                        print("warmSpareSettings={}".format(warmSpareSettings))
                     if warmSpareSettings and warmSpareSettings['enabled']:
                         self.handleWarmSpare(network, subnets, warmSpareSettings)
                     else:
@@ -218,8 +231,11 @@ class Meraki2strongSwan:
                                 device_name = None
                                 if 'name' in device:
                                     device_name = device['name']
+                                if not device['model'].startswith('MX'):
+                                    continue
                                 if self.verbose:
-                                    print(" Device: {}".format(device_name))
+                                    print(" Device name: {}".format(device_name))
+                                    print(" Device: {}".format(device))
                                 uplinks = self.dashboard.devices.getNetworkDeviceUplink(network['id'], device['serial'])
                                 if self.verbose:
                                     print("   Uplinks: {}".format(uplinks))
@@ -244,12 +260,13 @@ class Meraki2strongSwan:
         organization = None
         networkFilter = None
         options = getopt.getopt(sys.argv[1:],
-                                'a:f:i:o:s:w:v',
+                                'a:f:i:o:s:t:w:v',
                                 [
                                     'apikey=',
                                     'filter=',
                                     'ip=',
                                     'organization=',
+                                    'tag=',
                                     'write=',
                                     'verbose',
                                 ])[0]
@@ -267,6 +284,8 @@ class Meraki2strongSwan:
                 organization = arg
             elif opt in ('-s', '--subnets'):
                 self.subnets = arg
+            elif opt in ('-t', '--tag'):
+                self.tag = arg
             elif opt in ('-v', '--verbose'):
                 self.verbose = True
 
