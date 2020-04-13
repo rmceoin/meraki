@@ -427,6 +427,7 @@ def listNetworks(key, orgid):
         print("Unable to getNetworks.  Wrong apikey?")
         return
     networkNames = []
+    networks_by_name = {}
 
     if len(networkFilter):
         filterRe = "^" + networkFilter + ".*"
@@ -437,8 +438,13 @@ def listNetworks(key, orgid):
         if (len(networkFilter) < 1) or \
                 (regex.match(network['name'])):
             networkNames.append(network['name'])
+        networks_by_name[network['name']] = network
+
     for name in sorted(networkNames):
-        print("{}".format(name))
+        if verbose:
+            print("{},{}".format(name, networks_by_name[name]['id']))
+        else:
+            print("{}".format(name))
 
 def listLldpCdpCmd(key, orgid, networkName, whichType):
     networks = getNetworks(key, orgid)
