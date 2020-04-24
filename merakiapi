@@ -15,6 +15,7 @@ import sys
 import requests
 import yaml
 
+
 class MerakiAPI:
     """
     Leverage multiple Meraki APIs to get information from the Dashboard.
@@ -108,6 +109,11 @@ class MerakiAPI:
 
     def getLldpCdp(self, networkId, serial):
         url = "https://dashboard.meraki.com/api/v0/networks/%s/devices/%s/lldp_cdp?timespan=7200" % (networkId, serial)
+        return self.getJson(url)
+
+    # MX 1:1 NAT rules
+    def getOneToOneNatRules(self, networkId):
+        url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToOneNatRules" % (networkId)
         return self.getJson(url)
 
     # MX L3 firewall
@@ -252,6 +258,18 @@ class MerakiAPI:
                                 print("%s,%s,%s" % (network['name'],
                                                     subnet['localSubnet'],
                                                     subnet['useVpn']))
+
+    def listOneToOneNatRules(self, orgid):
+        if len(self.networkToList) < 1:
+            print("Please specify a network.")
+            return
+        network = self.findNetwork(orgid, self.networkToList)
+        if network is False:
+            print("Unable to find network: %s" % (self.networkToList))
+            return
+        oneToOneNatRules = self.getOneToOneNatRules(network['id'])
+        if oneToOneNatRules:
+            print(json.dumps(oneToOneNatRules, indent=2, sort_keys=True))
 
     def listL3FirewallRules(self, orgid):
         if len(self.networkToList) < 1:
@@ -685,6 +703,8 @@ class MerakiAPI:
             self.listDeviceStatuses(orgid)
         elif cmd == "networks":
             self.listNetworks(orgid)
+        elif cmd == "onetoonenaterules":
+            self.listOneToOneNatRules(orgid)
         elif cmd == "organizations":
             self.listOrganizations()
         elif cmd == "l3firewallrules":
