@@ -79,7 +79,7 @@ class MerakiAPI:
 
         return data
 
-    def postJson(self, url: str, parameters):
+    def postJson(self, url: str, parameters) -> bool:
 
         headers = {}
         headers['Content-Type'] = 'application/json'
@@ -105,34 +105,34 @@ class MerakiAPI:
 
     # Clients
 
-    def getClients(self, deviceId, duration):
+    def getClients(self, deviceId: str, duration: int) -> list:
         url = "https://dashboard.meraki.com/api/v0/devices/%s/clients?timespan=%d" % (deviceId, duration)
         return self.getJson(url)
 
     # Devices
 
-    def getDevices(self, networkId):
+    def getDevices(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/devices" % (networkId)
         return self.getJson(url)
 
-    def getLldpCdp(self, networkId, serial):
+    def getLldpCdp(self, networkId: str, serial: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/devices/%s/lldp_cdp?timespan=7200" % (networkId, serial)
         return self.getJson(url)
 
     # MX 1:1 NAT rules
-    def getOneToOneNatRules(self, networkId):
+    def getOneToOneNatRules(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/oneToOneNatRules" % (networkId)
         return self.getJson(url)
 
     # MX L3 firewall
 
-    def getL3FirewallRules(self, networkId):
+    def getL3FirewallRules(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/l3FirewallRules" % (networkId)
         return self.getJson(url)
 
     # Networks
 
-    def getNetworks(self, orgid):
+    def getNetworks(self, orgid: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
         return self.getJson(url)
 
@@ -160,11 +160,20 @@ class MerakiAPI:
 
         return networks
 
-    def getSiteToSiteVpn(self, networkId):
+    def getSiteToSiteVpn(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/siteToSiteVpn" % (networkId)
         return self.getJson(url)
 
-    def getSiteToSiteVpnSubnetsAsHash(self, networkId):
+    def getSiteToSiteVpnSubnetsAsDict(self, networkId: str) -> dict:
+        """Get the site-to-site VPN subnets as a dictionary where
+        the subnet string is the lookup.
+
+        Arguments:
+            networkId {str} -- Id of network to retrieve from
+
+        Returns:
+            dict -- Dictionary of subnets
+        """
         siteToSiteVpns = self.getSiteToSiteVpn(networkId)
         hashed = {}
         if siteToSiteVpns and ('subnets' in siteToSiteVpns):
@@ -174,37 +183,37 @@ class MerakiAPI:
 
     # Organizations
 
-    def getOrganizations(self):
+    def getOrganizations(self) -> list:
         url = "https://dashboard.meraki.com/api/v0/organizations"
         return self.getJson(url)
 
-    def getDeviceStatuses(self, orgid):
+    def getDeviceStatuses(self, orgid: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/organizations/%s/deviceStatuses" % (orgid)
         return self.getJson(url)
 
     # SSIDs
 
-    def getSSIDs(self, networkId):
+    def getSSIDs(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids" % (networkId)
         return self.getJson(url)
 
     # Static routes
 
-    def getStaticRoutes(self, networkId):
+    def getStaticRoutes(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
         return self.getJson(url)
 
     # VLANs
 
-    def getVlans(self, networkId):
+    def getVlans(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/vlans" % (networkId)
         return self.getJson(url)
 
-    def getNetworkSecurityEvents(self, networkId):
+    def getNetworkSecurityEvents(self, networkId: str) -> list:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/securityEvents" % (networkId)
         return self.getJson(url)
 
-    def addStaticRoute(self, networkId, subnet, subnetname, gatewayIp):
+    def addStaticRoute(self, networkId, subnet, subnetname, gatewayIp) -> bool:
         url = "https://dashboard.meraki.com/api/v0/networks/%s/staticRoutes" % (networkId)
         parameters = {}
         parameters['name'] = subnetname
@@ -214,23 +223,16 @@ class MerakiAPI:
         parameters['active'] = 'always'
         return self.postJson(url, parameters)
 
-    def findDevice(self, orgid, networkName, deviceName):
-        network = self.findNetwork(orgid, networkName)
-        if network is False:
-            print("Unable to find network: %s" % (networkName))
-            return False
-        devices = self.getDevices(network['id'])
-        if devices is False:
-            print("Unable to get devices: %s" % (networkName))
-            return False
-        for device in devices:
-            if self.verbose:
-                print("Testing device %s, %s" % (device, deviceName))
-            if device['name'].lower() == deviceName.lower():
-                return device
-        return False
+    def findNetwork(self, orgid: str, networkName: str) -> dict:
+        """Find a network based on it's name.
 
-    def findNetwork(self, orgid, networkName):
+        Arguments:
+            orgid {str} -- Organization ID
+            networkName {str} -- Network name
+
+        Returns:
+            dict -- Network details
+        """
         networks = self.getNetworks(orgid)
         for network in networks:
             if self.verbose:
@@ -329,7 +331,7 @@ class MerakiAPI:
                     print("staticRoutes: %s" % (staticRoutes))
     #            if staticRoutes is False:
     #                continue
-                siteToSiteVpnSubnets = self.getSiteToSiteVpnSubnetsAsHash(network['id'])
+                siteToSiteVpnSubnets = self.getSiteToSiteVpnSubnetsAsDict(network['id'])
                 if staticRoutes:
                     for staticRoute in staticRoutes:
                         if self.verbose:
