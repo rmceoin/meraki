@@ -10,7 +10,7 @@ _merakiapi ()   #  By convention, the function name
   first=${COMP_WORDS[1]}
 
   commonoptions='--apikey --orgid --verbose'
-  opts="cdp clients devices devicestatuses l3firewallrules lldp lldpcdp sitetositevpn staticroutes organizations networks vlans"
+  opts="cdp clients devices devicestatuses l3firewallrules lldp lldpcdp sitetositevpn ssids staticroutes organizations networks vlans"
 
   case "$first" in
     clients)
