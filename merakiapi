@@ -122,6 +122,21 @@ class MerakiAPI:
         url = "https://dashboard.meraki.com/api/v0/organizations/%s/networks" % (orgid)
         return self.getJson(url)
 
+    def getNetworksFiltered(self, orgid) -> list:
+        networks = []
+        raw_networks = self.getNetworks(orgid)
+
+        if self.networkFilter:
+            filterRe = "^" + self.networkFilter + ".*"
+            regex = re.compile(filterRe, flags=re.IGNORECASE)
+
+        for network in raw_networks:
+            if (self.networkFilter) and not regex.match(network['name']):
+                continue
+            networks.append(network)
+
+        return networks
+
     def getSiteToSiteVpn(self, networkId):
         url = "https://dashboard.meraki.com/api/v0/networks/%s/siteToSiteVpn" % (networkId)
         return self.getJson(url)
@@ -257,7 +272,7 @@ class MerakiAPI:
 
     def listSSIDs(self, orgid, networkName: str):
 
-        networks = self.getNetworks(orgid)
+        networks = self.getNetworksFiltered(orgid)
         for network in networks:
             if self.verbose:
                 print("Network: %s (%s)" % (network['name'], networkName))
@@ -270,7 +285,7 @@ class MerakiAPI:
                 for ssid in ssids:
                     if self.verbose:
                         print("ssid: %s" % (ssid['name']))
-                    print("{},{},{},{},'{}'".format(network['name'], ssid['name'], \
+                    print('{},{},{},{},"{}"'.format(network['name'], ssid['name'], \
                         ssid['enabled'], ssid['authMode'], ssid['ipAssignmentMode']))
 
     def listStaticRoutes(self, orgid):
