@@ -37,6 +37,14 @@ class MerakiAPI:
         self.listhubs = False
 
     def getJson(self, url: str) -> dict:
+        """Perform REST call to Meraki with the provided URL.
+
+        Arguments:
+            url {str} -- URL to specific API
+
+        Returns:
+            dict -- Results from call.  May be False.
+        """
 
         headers = {}
         headers['Content-Type'] = 'application/json'
@@ -129,6 +137,15 @@ class MerakiAPI:
         return self.getJson(url)
 
     def getNetworksFiltered(self, orgid) -> list:
+        """Retrieve all networks for the organization.  If a filter is defined, then
+        only return matching results.
+
+        Arguments:
+            orgid {[type]} -- Organization to collect networks from.
+
+        Returns:
+            list -- Networks in organization.
+        """
         networks = []
         raw_networks = self.getNetworks(orgid)
 
@@ -230,34 +247,27 @@ class MerakiAPI:
         return hubId
 
     def listSiteToSiteVpn(self, orgid, listhubs):
-        networks = self.getNetworks(orgid)
-
-        if self.networkFilter:
-            filterRe = "^" + self.networkFilter + ".*"
-            regex = re.compile(filterRe, flags=re.IGNORECASE)
+        networks = self.getNetworksFiltered(orgid)
 
         for network in networks:
             if self.verbose:
                 print("Network: %s" % (network['name']))
 
-            if (len(self.networkFilter) < 1) or \
-                    (regex.match(network['name'])):
-
-                siteToSiteVpn = self.getSiteToSiteVpn(network['id'])
-                if siteToSiteVpn:
-                    if listhubs:
-                        if 'hubs' in siteToSiteVpn:
-                            for hub in siteToSiteVpn['hubs']:
-                                hubName = self.findHub(networks, hub['hubId'])
-                                print("%s,%s,%s" % (network['name'],
-                                                    hubName,
-                                                    hub['useDefaultRoute']))
-                    else:
-                        if 'subnets' in siteToSiteVpn:
-                            for subnet in siteToSiteVpn['subnets']:
-                                print("%s,%s,%s" % (network['name'],
-                                                    subnet['localSubnet'],
-                                                    subnet['useVpn']))
+            siteToSiteVpn = self.getSiteToSiteVpn(network['id'])
+            if siteToSiteVpn:
+                if listhubs:
+                    if 'hubs' in siteToSiteVpn:
+                        for hub in siteToSiteVpn['hubs']:
+                            hubName = self.findHub(networks, hub['hubId'])
+                            print("%s,%s,%s" % (network['name'],
+                                                hubName,
+                                                hub['useDefaultRoute']))
+                else:
+                    if 'subnets' in siteToSiteVpn:
+                        for subnet in siteToSiteVpn['subnets']:
+                            print("%s,%s,%s" % (network['name'],
+                                                subnet['localSubnet'],
+                                                subnet['useVpn']))
 
     def listOneToOneNatRules(self, orgid):
         if len(self.networkToList) < 1:
@@ -345,18 +355,11 @@ class MerakiAPI:
             print("%s,'%s'" % (organization['id'], organization['name']))
 
     def listClients(self, orgid):
-        networks = self.getNetworks(orgid)
-
-        if self.networkFilter:
-            filterRe = "^" + self.networkFilter + ".*"
-            regex = re.compile(filterRe, flags=re.IGNORECASE)
+        networks = self.getNetworksFiltered(orgid)
 
         for network in networks:
             if self.verbose:
                 print("Network: %s (%s)" % (network['name'], self.networkFilter))
-
-            if self.networkFilter and not regex.match(network['name']):
-                continue
 
             devices = self.getDevices(network['id'])
             if not devices:
@@ -380,16 +383,9 @@ class MerakiAPI:
 
         deviceStatuses = self.getDeviceStatuses(orgid)
 
-        networks = self.getNetworks(orgid)
-
-        if self.networkFilter:
-            filterRe = "^" + self.networkFilter + ".*"
-            regex = re.compile(filterRe, flags=re.IGNORECASE)
+        networks = self.getNetworksFiltered(orgid)
 
         for network in networks:
-            if (self.networkFilter) and not regex.match(network['name']):
-                continue
-
             for deviceStatus in deviceStatuses:
                 if network['id'] != deviceStatus['networkId']:
                     continue
@@ -424,20 +420,14 @@ class MerakiAPI:
 
     def listDevices(self, orgid):
 
-        networks = self.getNetworks(orgid)
-
         if self.networkToList and not self.networkFilter:
             self.networkFilter = self.networkToList
-        if self.networkFilter:
-            filterRe = "^" + self.networkFilter + ".*"
-            regex = re.compile(filterRe, flags=re.IGNORECASE)
+
+        networks = self.getNetworksFiltered(orgid)
 
         for network in networks:
             if self.verbose:
                 print("Network: %s (%s)" % (network['name'], self.networkFilter))
-
-            if self.networkFilter and not regex.match(network['name']):
-                continue
 
             devices = self.getDevices(network['id'])
             if not devices:
@@ -464,22 +454,16 @@ class MerakiAPI:
                        wan1Ip, wan2Ip, tags))
 
     def listNetworks(self, orgid):
-        networks = self.getNetworks(orgid)
+        networks = self.getNetworksFiltered(orgid)
         if not networks:
             print("Unable to getNetworks.  Wrong apikey?")
             return
         networkNames = []
         networks_by_name = {}
 
-        if self.networkFilter:
-            filterRe = "^" + self.networkFilter + ".*"
-            regex = re.compile(filterRe, flags=re.IGNORECASE)
-
         for network in networks:
     #        print("%s" % (network['name']))
-            if (len(self.networkFilter) < 1) or \
-                    (regex.match(network['name'])):
-                networkNames.append(network['name'])
+            networkNames.append(network['name'])
             networks_by_name[network['name']] = network
 
         for name in sorted(networkNames):
@@ -489,7 +473,7 @@ class MerakiAPI:
                 print("{}".format(name))
 
     def listLldpCdpCmd(self, orgid, networkName):
-        networks = self.getNetworks(orgid)
+        networks = self.getNetworksFiltered(orgid)
         for network in networks:
             if self.verbose:
                 print("Network: %s (%s)" % (network['name'], networkName))
@@ -531,7 +515,7 @@ class MerakiAPI:
                 return
 
     def listVlans(self, orgid, networkName):
-        networks = self.getNetworks(orgid)
+        networks = self.getNetworksFiltered(orgid)
         for network in networks:
             if self.verbose:
                 print("Network: %s (%s)" % (network['name'], networkName))
