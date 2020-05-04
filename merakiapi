@@ -597,7 +597,7 @@ class MerakiAPI:
             orgid = os.environ['MERAKI_ORGID']
 
         if len(sys.argv) < 2:
-            print("Please provide a command: cdp clients devices devicestatuses lldp lldpcdp networks organizations sitetositevpn ssids staticroutes vlans")
+            print("Please provide a command: cdp clients devices devicestatuses l3firewallrules lldp lldpcdp networks onetoonenatrules organizations sitetositevpn ssids staticroutes vlans")
             sys.exit(1)
 
         options = getopt.getopt(sys.argv[2:], 's:v', ['add',
@@ -689,7 +689,7 @@ class MerakiAPI:
             self.listDeviceStatuses(orgid)
         elif cmd == "networks":
             self.listNetworks(orgid)
-        elif cmd == "onetoonenaterules":
+        elif cmd == "onetoonenatrules":
             self.listOneToOneNatRules(orgid)
         elif cmd == "organizations":
             self.listOrganizations()
