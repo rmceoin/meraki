@@ -39,21 +39,15 @@ class MerakiBackup:
         self.output_filename = None
         self.dashboard = None
 
-    def getNetworkVlans(self, networkId: str) -> dict:
+    def getNetworkConnectivityMonitoringDestinations(self, networkId: str) -> dict:
         try:
-            return self.dashboard.vlans.getNetworkVlans(networkId)
+            return self.dashboard.connectivity_monitoring_destinations.getNetworkConnectivityMonitoringDestinations(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkStaticRoutes(self, networkId: str) -> dict:
+    def getNetworkContentFiltering(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_static_routes.getNetworkStaticRoutes(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkSsids(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.ssids.getNetworkSsids(networkId)
+            return self.dashboard.content_filtering_rules.getNetworkContentFiltering(networkId)
         except meraki.exceptions.APIError:
             return None
 
@@ -63,45 +57,9 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkWirelessSettings(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.wireless_settings.getNetworkWirelessSettings(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkSecurityIntrusionSettings(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.intrusion_settings.getNetworkSecurityIntrusionSettings(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkConnectivityMonitoringDestinations(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.connectivity_monitoring_destinations.getNetworkConnectivityMonitoringDestinations(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkVlansEnabledState(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.vlans.getNetworkVlansEnabledState(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
     def getNetworkFirewalledServices(self, networkId: str) -> dict:
         try:
             return self.dashboard.firewalled_services.getNetworkFirewalledServices(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkSiteToSiteVpn(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.networks.getNetworkSiteToSiteVpn(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkL3FirewallRules(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.mx_l3_firewall.getNetworkL3FirewallRules(networkId)
         except meraki.exceptions.APIError:
             return None
 
@@ -111,33 +69,21 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
+    def getNetworkSecurityIntrusionSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.intrusion_settings.getNetworkSecurityIntrusionSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
     def getNetworkSecurityMalwareSettings(self, networkId: str) -> dict:
         try:
             return self.dashboard.malware_settings.getNetworkSecurityMalwareSettings(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkWarmSpareSettings(self, networkId: str) -> dict:
+    def getNetworkDeviceManagementInterfaceSettings(self, networkId: str, serial: str) -> dict:
         try:
-            return self.dashboard.mx_warm_spare_settings.getNetworkWarmSpareSettings(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkL7FirewallRules(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.mx_l7_firewall.getNetworkL7FirewallRules(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkL7FirewallRulesApplicationCategories(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.mx_l7_application_categories.getNetworkL7FirewallRulesApplicationCategories(networkId)
-        except meraki.exceptions.APIError:
-            return None
-
-    def getNetworkContentFiltering(self, networkId: str) -> dict:
-        try:
-            return self.dashboard.content_filtering_rules.getNetworkContentFiltering(networkId)
+            return self.dashboard.management_interface_settings.getNetworkDeviceManagementInterfaceSettings(networkId, serial)
         except meraki.exceptions.APIError:
             return None
 
@@ -153,9 +99,51 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
+    def getNetworkL3FirewallRules(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_l3_firewall.getNetworkL3FirewallRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkL7FirewallRules(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_l7_firewall.getNetworkL7FirewallRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkL7FirewallRulesApplicationCategories(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_l7_application_categories.getNetworkL7FirewallRulesApplicationCategories(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
     def getNetworkPortForwardingRules(self, networkId: str) -> dict:
         try:
             return self.dashboard.mx_port_forwarding_rules.getNetworkPortForwardingRules(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkStaticRoutes(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_static_routes.getNetworkStaticRoutes(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkAppliancePorts(self, networkId: str):
+        try:
+            return self.dashboard.mx_vlan_ports.getNetworkAppliancePorts(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkWarmSpareSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.mx_warm_spare_settings.getNetworkWarmSpareSettings(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkSiteToSiteVpn(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.networks.getNetworkSiteToSiteVpn(networkId)
         except meraki.exceptions.APIError:
             return None
 
@@ -165,15 +153,27 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkDeviceManagementInterfaceSettings(self, networkId: str, serial: str) -> dict:
+    def getNetworkSsids(self, networkId: str) -> dict:
         try:
-            return self.dashboard.management_interface_settings.getNetworkDeviceManagementInterfaceSettings(networkId, serial)
+            return self.dashboard.ssids.getNetworkSsids(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkAppliancePorts(self, networkId: str):
+    def getNetworkVlans(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_vlan_ports.getNetworkAppliancePorts(networkId)
+            return self.dashboard.vlans.getNetworkVlans(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkVlansEnabledState(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.vlans.getNetworkVlansEnabledState(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkWirelessSettings(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.wireless_settings.getNetworkWirelessSettings(networkId)
         except meraki.exceptions.APIError:
             return None
 
