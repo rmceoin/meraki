@@ -73,6 +73,8 @@ sudo cp bash_completion.d/merakiapi /etc/bash_completion.d/
 
 ## Commands
 
+### merakiapi
+
 Use the main `merakiapi` script to run various commands.
 
 - cdp
@@ -104,3 +106,20 @@ MyNetwork1,LOC-EDI-LP2457,10.2.8.58,78:c9:86:ab:43:64,137,9
 MyNetwork1,DudepleWatch,10.2.8.8,38:79:86:6b:a6:41,1,0
 MyNetwork1,LOC-EDI-LP2457,10.2.8.6,4c:72:75:a2:ac:c5,10711,338597
 ```
+
+### merakicopyssid
+
+Use `merakicopyssid` to copy a wireless SSID configuration from one network
+to another.  It's also possible to simply copy a SSID within the same
+network.
+
+```bash
+merakicopyssid -o 123456 --srcnet MyNetwork1 --srcssid 1 --dstnet MyNetwork2 --dstssid 0
+```
+
+At the time of this writing the Meraki API call for
+[get-network-ssid](https://developer.cisco.com/meraki/api/#!get-network-ssid)
+does not return all attributes of a SSID.
+
+Because the RADIUS secrets are not exposed by the API they must be manually
+specified when copying a SSID with RADIUS servers.   Use the `--secret` option.

@@ -1,0 +1,290 @@
+#!/usr/bin/env python3
+
+"""
+merakicopyssid.py
+
+Copy an existing SSID.  Can be used to copy within the same network or to another network.
+
+Before running the script, it's best to put the APIKEY
+into the MERAKI_DASHBOARD_API_KEY environment variable.  Otherwise
+use the less security --apikey option.
+
+export MERAKI_DASHBOARD_API_KEY="the_api_key_here"
+
+"""
+
+import getopt
+import json
+import os
+import sys
+
+import meraki
+from attr import attrib, attrs
+
+DEBUG = False
+
+# pylint: disable=too-many-instance-attributes
+
+@attrs
+class NetworkSSID():
+    network_name = attrib(default=None, type=str)
+    network_id = attrib(default=None, type=str)
+    SSID_number = attrib(default=None, type=int)
+    SSID_name = attrib(default=None, type=str)
+
+    # Set to True if SSID 'enabled' should be set to False
+    set_disabled = attrib(default=False)
+
+class MerakiCopySSID:
+    """
+    Copy a Meraki SSID configuration
+    """
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+        self.apikey = None
+        self.organization = None
+        self.dashboard = None
+        self.networks_by_name = {}
+        self.source = NetworkSSID()
+        self.destination = NetworkSSID()
+        self.secret = None
+
+    def getNetworkSsids(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.ssids.getNetworkSsids(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def getNetworkSsid(self, networkId: str, SSID_number: int) -> dict:
+        try:
+            return self.dashboard.ssids.getNetworkSsid(networkId, SSID_number)
+        except meraki.exceptions.APIError:
+            return None
+
+    def updateNetworkSsid(self, networkId: str, SSID_number: int, settings: dict) -> dict:
+        try:
+            return self.dashboard.ssids.updateNetworkSsid(networkId, str(SSID_number), **settings)
+        except meraki.exceptions.APIError:
+            return None
+
+    def listSSIDs(self, network_name: str):
+
+        if network_name in self.networks_by_name:
+            networkId = self.networks_by_name[network_name]['id']
+        else:
+            print(f"Error: unknown network: {network_name}")
+            return
+
+        ssids = self.getNetworkSsids(networkId)
+        if ssids:
+            for ssid in ssids:
+                if self.verbose:
+                    print("ssid: %s" % (ssid['name']))
+                print('{},{},{},{},"{}"'.format(ssid['number'], ssid['name'], \
+                    ssid['enabled'], ssid['authMode'], ssid['ipAssignmentMode']))
+
+    def get_org_id(self, organization_id: str) -> str:
+
+        organizations = self.dashboard.organizations.getOrganizations()
+        if not organizations:
+            print("Error: No organizations found")
+            return None
+
+        if len(organizations) > 1 and not organization_id:
+            print("Error: more than one organization found.  Please specify one by id with -o option.")
+            for organization in organizations:
+                print("{},{}".format(organization['id'], organization['name']))
+            return None
+
+        if len(organizations) == 1:
+            return organizations['id']
+
+        for organization in organizations:
+            if self.verbose:
+                #print("org={}".format(organizations))
+                print("Organization: {} {}".format(organization['id'], organization['name']))
+            if organization_id == organization['id']:
+                return organization['id']
+
+        print("Error: organization not found: {}".format(organization_id))
+        return None
+
+    def get_networks_by_name(self):
+        networks = self.dashboard.networks.getOrganizationNetworks(self.organization)
+        if networks:
+            for network in networks:
+                if self.verbose:
+                    print("Network: {}".format(network['name']))
+                self.networks_by_name[network['name']] = network
+        else:
+            print("Error: no networks found in organization")
+
+    def copy(self):
+
+        if self.source.network_name not in self.networks_by_name:
+            print("Error: {} is unknown network".format(self.source.network_name))
+            return False
+
+        if self.destination.network_name not in self.networks_by_name:
+            print("Error: {} is unknown network".format(self.destination.network_name))
+            return False
+
+        self.source.network_id = self.networks_by_name[self.source.network_name]['id']
+        self.destination.network_id = self.networks_by_name[self.destination.network_name]['id']
+
+        src_ssid = self.getNetworkSsid(self.source.network_id, self.source.SSID_number)
+
+        if self.verbose:
+            print("src_ssid={}".format(json.dumps(src_ssid, indent=2, sort_keys=True)))
+
+        dst_ssid = {}
+        #
+        # Unfortunately the Meraki API is not perfect.
+        # Not all keys should be copied over.
+        #
+        for key in src_ssid:
+            if src_ssid[key] is not None:
+                if key == 'number':
+                    # the API doesn't like the number also in the kwargs despite what the
+                    # documentation says
+                    pass
+                elif key == 'encryptionMode':
+                    if 'authMode' in src_ssid and src_ssid['authMode'] != '8021x-radius':
+                        dst_ssid[key] = src_ssid[key]
+                else:
+                    dst_ssid[key] = src_ssid[key]
+
+                if key in ['radiusServers', 'radiusAccountingServers']:
+                    if self.secret:
+                        for server in dst_ssid[key]:
+                            server['secret'] = self.secret
+                    else:
+                        print(f"Error: {key} detected.  You must specify a --secret")
+                        return False
+
+        if self.destination.SSID_name:
+            # override the SSID name
+            dst_ssid['name'] = self.destination.SSID_name
+
+        if self.destination.set_disabled:
+            dst_ssid['enabled'] = False
+
+        if self.verbose:
+            print("dst_ssid={}".format(json.dumps(dst_ssid, indent=2, sort_keys=True)))
+        self.updateNetworkSsid(self.destination.network_id, self.destination.SSID_number, dst_ssid)
+        return True
+
+    def check_src_dst(self) -> bool:
+        has_error = False
+        if not self.source.network_name:
+            print("Error: please specify a source network with --srcnet")
+            has_error = True
+        elif self.source.SSID_number is None:
+            print("Error: please specify a source SSID number with --srcssid")
+            self.listSSIDs(self.source.network_name)
+            has_error = True
+        elif not (self.source.SSID_number is not None and
+                  self.source.SSID_number > -1 and self.source.SSID_number < 32):
+            print("Error: source SSID number must be 0 to 32")
+            has_error = True
+        elif not self.destination.network_name:
+            print("Error: please specify a destination network with --dstnet")
+            has_error = True
+        elif self.destination.SSID_number is None:
+            print("Error: please specify a destination SSID number with --dstssid")
+            self.listSSIDs(self.destination.network_name)
+            has_error = True
+        elif not (self.destination.SSID_number is not None and
+                  self.destination.SSID_number > -1 and self.destination.SSID_number < 32):
+            print("Error: destination SSID number must be 0 to 32")
+            has_error = True
+        return has_error
+
+    @staticmethod
+    def usage():
+        print("Usage:\n"
+              "\t--apikey       - {API key}\n"
+              "\t--dstdisabled  - set the destination SSID to disabled\n"
+              "\t--dstnet       - name of destination network\n"
+              "\t--dstssid      - number of destination SSID (0 - 31)\n"
+              "\t--dstssidname  - new name for destination SSID\n"
+              "\t--organization - ID of organization.  Required if API key has access to more than one.\n"
+              "\t--secret       - RADIUS secret\n"
+              "\t--srcnet       - name of source network\n"
+              "\t--srcssid      - number of source SSID (0 - 31)\n"
+              "\t--verbose      - verbose output\n"
+             )
+
+    def main(self):
+        """
+        Parse command line options and perform copy.
+        """
+        organization_id = None
+        try:
+            options = getopt.getopt(sys.argv[1:],
+                                    'a:o:v',
+                                    [
+                                        'apikey=',
+                                        'dstdisabled',
+                                        'dstnet=',
+                                        'dstssid=',
+                                        'dstssidname=',
+                                        'secret=',
+                                        'srcnet=',
+                                        'srcssid=',
+                                        'organization=',
+                                        'verbose',
+                                    ])[0]
+        except getopt.GetoptError as err:
+            print(err)
+            self.usage()
+            sys.exit(2)
+
+        for opt, arg in options:
+            if opt in ('-a', '--apikey'):
+                self.apikey = arg
+            elif opt in ('-o', '--organization'):
+                organization_id = arg
+            elif opt == '--dstdisabled':
+                self.destination.set_disabled = True
+            elif opt == '--dstnet':
+                self.destination.network_name = arg
+            elif opt == '--dstssid':
+                self.destination.SSID_number = int(arg)
+            elif opt == '--dstssidname':
+                self.destination.SSID_name = arg
+            elif opt == '--secret':
+                self.secret = arg
+            elif opt == '--srcnet':
+                self.source.network_name = arg
+            elif opt == '--srcssid':
+                self.source.SSID_number = int(arg)
+            elif opt in ('-v', '--verbose'):
+                self.verbose = True
+
+        if 'MERAKI_APIKEY' in os.environ:
+            self.apikey = os.environ['MERAKI_APIKEY']
+        if 'MERAKI_DASHBOARD_API_KEY' in os.environ:
+            self.apikey = os.environ['MERAKI_DASHBOARD_API_KEY']
+
+        if not self.apikey:
+            print("Missing apikey")
+            sys.exit(2)
+
+        try:
+            self.dashboard = meraki.DashboardAPI(api_key=self.apikey,
+                                                 output_log=DEBUG,
+                                                 print_console=self.verbose)
+        except meraki.exceptions.APIKeyError as exception:
+            print("Error: {}".format(exception))
+            return
+
+        self.organization = self.get_org_id(organization_id)
+        if self.organization:
+            self.get_networks_by_name()
+            if self.check_src_dst():
+                return
+            self.copy()
+
+if __name__ == "__main__":
+    MerakiCopySSID().main()

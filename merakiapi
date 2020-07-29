@@ -315,7 +315,7 @@ class MerakiAPI:
                 for ssid in ssids:
                     if self.verbose:
                         print("ssid: %s" % (ssid['name']))
-                    print('{},{},{},{},"{}"'.format(network['name'], ssid['name'], \
+                    print('{},{},{},{},{},"{}"'.format(network['name'], ssid['number'], ssid['name'], \
                         ssid['enabled'], ssid['authMode'], ssid['ipAssignmentMode']))
 
     def listStaticRoutes(self, orgid):
