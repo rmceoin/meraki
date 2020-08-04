@@ -159,6 +159,12 @@ class MerakiBackup:
         except meraki.exceptions.APIError:
             return None
 
+    def getNetworkSyslogServers(self, networkId: str) -> dict:
+        try:
+            return self.dashboard.syslog_servers.getNetworkSyslogServers(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
     def getNetworkVlans(self, networkId: str) -> dict:
         try:
             return self.dashboard.vlans.getNetworkVlans(networkId)
@@ -241,8 +247,7 @@ class MerakiBackup:
 
                     network['ssids'] = self.getNetworkSsids(network['id'])
 
-                    syslogServers = self.dashboard.syslog_servers.getNetworkSyslogServers(network['id'])
-                    network['syslogServers'] = syslogServers
+                    network['syslogServers'] = self.getNetworkSyslogServers(network['id'])
 
                     network['contentFiltering'] = self.getNetworkContentFiltering(network['id'])
 
