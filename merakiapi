@@ -432,9 +432,11 @@ class MerakiAPI:
                 print("Network: %s (%s)" % (network['name'], self.networkFilter))
 
             devices = self.getDevices(network['id'])
-            if not devices:
+            if devices is False:
                 print("Unable to getDevices.  Wrong apikey?")
                 return
+            if not devices:
+                continue
             for device in devices:
                 if self.verbose:
                     print("device: %s" % (device))
@@ -446,14 +448,17 @@ class MerakiAPI:
                     wan2Ip = device['wan2Ip']
                 tags = ''
                 if 'tags' in device:
-                    tags = device['tags']
+                    tags = device['tags'].strip()
+                address = ''
+                if 'address' in device:
+                    address = device['address'].replace('\n', '')
                 device_name = ''
                 if 'name' in device:
                     device_name = device['name']
-                print("%s,%s,%s,%s,%s,%s,%s,%s" %
+                print('%s,%s,%s,%s,%s,%s,%s,"%s","%s"' %
                       (network['name'], device_name,
                        device['model'], device['serial'], device['mac'],
-                       wan1Ip, wan2Ip, tags))
+                       wan1Ip, wan2Ip, tags, address))
 
     def listNetworks(self, orgid):
         networks = self.getNetworksFiltered(orgid)
