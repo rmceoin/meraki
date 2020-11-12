@@ -18,8 +18,9 @@ import json
 import os
 import sys
 
-import meraki
 from attr import attrib, attrs
+
+import meraki
 
 DEBUG = False
 
@@ -49,21 +50,21 @@ class MerakiCopySSID:
         self.destination = NetworkSSID()
         self.secret = None
 
-    def getNetworkSsids(self, networkId: str) -> dict:
+    def getNetworkWirelessSsids(self, networkId: str) -> dict:
         try:
-            return self.dashboard.ssids.getNetworkSsids(networkId)
+            return self.dashboard.wireless.getNetworkWirelessSsids(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkSsid(self, networkId: str, SSID_number: int) -> dict:
+    def getNetworkWirelessSsid(self, networkId: str, SSID_number: int) -> dict:
         try:
-            return self.dashboard.ssids.getNetworkSsid(networkId, SSID_number)
+            return self.dashboard.wireless.getNetworkWirelessSsid(networkId, SSID_number)
         except meraki.exceptions.APIError:
             return None
 
-    def updateNetworkSsid(self, networkId: str, SSID_number: int, settings: dict) -> dict:
+    def updateNetworkWirelessSsid(self, networkId: str, SSID_number: int, settings: dict) -> dict:
         try:
-            return self.dashboard.ssids.updateNetworkSsid(networkId, str(SSID_number), **settings)
+            return self.dashboard.wireless.updateNetworkWirelessSsid(networkId, str(SSID_number), **settings)
         except meraki.exceptions.APIError:
             return None
 
@@ -75,7 +76,7 @@ class MerakiCopySSID:
             print(f"Error: unknown network: {network_name}")
             return
 
-        ssids = self.getNetworkSsids(networkId)
+        ssids = self.getNetworkWirelessSsids(networkId)
         if ssids:
             for ssid in ssids:
                 if self.verbose:
@@ -110,7 +111,7 @@ class MerakiCopySSID:
         return None
 
     def get_networks_by_name(self):
-        networks = self.dashboard.networks.getOrganizationNetworks(self.organization)
+        networks = self.dashboard.organizations.getOrganizationNetworks(self.organization)
         if networks:
             for network in networks:
                 if self.verbose:
@@ -132,7 +133,7 @@ class MerakiCopySSID:
         self.source.network_id = self.networks_by_name[self.source.network_name]['id']
         self.destination.network_id = self.networks_by_name[self.destination.network_name]['id']
 
-        src_ssid = self.getNetworkSsid(self.source.network_id, self.source.SSID_number)
+        src_ssid = self.getNetworkWirelessSsid(self.source.network_id, self.source.SSID_number)
 
         if self.verbose:
             print("src_ssid={}".format(json.dumps(src_ssid, indent=2, sort_keys=True)))
@@ -171,7 +172,7 @@ class MerakiCopySSID:
 
         if self.verbose:
             print("dst_ssid={}".format(json.dumps(dst_ssid, indent=2, sort_keys=True)))
-        self.updateNetworkSsid(self.destination.network_id, self.destination.SSID_number, dst_ssid)
+        self.updateNetworkWirelessSsid(self.destination.network_id, self.destination.SSID_number, dst_ssid)
         return True
 
     def check_src_dst(self) -> bool:
