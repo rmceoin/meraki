@@ -115,7 +115,7 @@ class MerakiCopySSID:
             for network in networks:
                 if self.verbose:
                     print("Network: {}".format(network['name']))
-                self.networks_by_name[network['name']] = network
+                self.networks_by_name[network['name'].lower()] = network
         else:
             print("Error: no networks found in organization")
 
@@ -248,15 +248,15 @@ class MerakiCopySSID:
             elif opt == '--dstdisabled':
                 self.destination.set_disabled = True
             elif opt == '--dstnet':
-                self.destination.network_name = arg
+                self.destination.network_name = arg.lower()
             elif opt == '--dstssid':
                 self.destination.SSID_number = int(arg)
             elif opt == '--dstssidname':
-                self.destination.SSID_name = arg
+                self.destination.SSID_name = arg.lower()
             elif opt == '--secret':
                 self.secret = arg
             elif opt == '--srcnet':
-                self.source.network_name = arg
+                self.source.network_name = arg.lower()
             elif opt == '--srcssid':
                 self.source.SSID_number = int(arg)
             elif opt in ('-v', '--verbose'):
