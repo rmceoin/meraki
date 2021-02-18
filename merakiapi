@@ -628,8 +628,8 @@ class MerakiAPI:
             elif opt == '--duration':
                 self.duration = abs(int(arg))
                 # if greater than a month, then truncate to a month
-                if duration > 2592000:
-                    duration = 2592000
+                if self.duration > 2592000:
+                    self.duration = 2592000
             elif opt == '--filter':
                 self.networkFilter = arg
             elif opt == '--gateway':
