@@ -98,7 +98,7 @@ class MerakiCopySSID:
             return None
 
         if len(organizations) == 1:
-            return organizations['id']
+            return organizations[0]['id']
 
         for organization in organizations:
             if self.verbose:

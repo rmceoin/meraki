@@ -364,7 +364,7 @@ class MerakiAPI:
                 print("Network: %s (%s)" % (network['name'], self.networkFilter))
 
             devices = self.getDevices(network['id'])
-            if not devices:
+            if devices is False:
                 print("Unable to getDevices.  Wrong apikey?")
                 return False
 
