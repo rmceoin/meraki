@@ -18,6 +18,7 @@ import json
 import os
 import sys
 
+import requests
 from attr import attrib, attrs
 
 import meraki
@@ -32,6 +33,7 @@ class NetworkSSID():
     network_id = attrib(default=None, type=str)
     SSID_number = attrib(default=None, type=int)
     SSID_name = attrib(default=None, type=str)
+    devices = attrib(default=None, type=list)
 
     # Set to True if SSID 'enabled' should be set to False
     set_disabled = attrib(default=False)
@@ -49,6 +51,134 @@ class MerakiCopySSID:
         self.source = NetworkSSID()
         self.destination = NetworkSSID()
         self.secret = None
+
+    def get_json(self, url: str) -> dict:
+        """Perform REST call to Meraki with the provided URL.
+
+        Arguments:
+            url {str} -- URL to specific API
+
+        Returns:
+            dict -- Results from call.  May be False.
+        """
+
+        headers = {}
+        headers['Content-Type'] = 'application/json'
+        headers['X-Cisco-Meraki-API-Key'] = self.apikey
+
+        try:
+            if self.verbose:
+                print(f'get_json: {url}')
+            req = requests.get(url, headers=headers)
+        except requests.exceptions.RequestException as exception:
+            print("Error: %s" % exception)
+            return False
+        except KeyboardInterrupt:
+            print("Aborted")
+            sys.exit(25)
+
+        if self.verbose:
+            print("r.status_code = %s" % (req.status_code))
+            print("r.text = %s" % (req.text))
+
+        if req.status_code == 400:
+            if self.verbose:
+                print("400 Bad request: %s : %s" % (url, req.text))
+            return False
+        if req.status_code == 404:
+            if self.verbose:
+                print("404 Not found: %s" % (url))
+            return False
+        if req.status_code != 200:
+            print("Error: %s - %s" % (req.status_code, req.text))
+            return False
+
+        data = json.loads(req.text)
+
+        return data
+
+    def put_json(self, url: str, data: dict) -> dict:
+        """Perform REST call to Meraki with the provided URL.
+
+        Arguments:
+            url {str} -- URL to specific API
+            data {dict} -- data to send in JSON payload
+
+        Returns:
+            dict -- Results from call.  May be False.
+        """
+
+        headers = {}
+        headers['Content-Type'] = 'application/json'
+        headers['X-Cisco-Meraki-API-Key'] = self.apikey
+
+        try:
+            if self.verbose:
+                print(f'put_json: {url}')
+            req = requests.put(url, headers=headers, json=data)
+        except requests.exceptions.RequestException as exception:
+            print("Error: %s" % exception)
+            return False
+        except KeyboardInterrupt:
+            print("Aborted")
+            sys.exit(25)
+
+        if self.verbose:
+            print("r.status_code = %s" % (req.status_code))
+            print("r.text = %s" % (req.text))
+
+        if req.status_code == 400:
+            if self.verbose:
+                print("400 Bad request: %s : %s" % (url, req.text))
+            return False
+        if req.status_code == 404:
+            if self.verbose:
+                print("404 Not found: %s" % (url))
+            return False
+        if req.status_code != 200:
+            print("Error: %s - %s" % (req.status_code, req.text))
+            return False
+
+        data = json.loads(req.text)
+
+        return data
+
+    def getNetworkSsids(self, networkId: str) -> list:
+        """Get the older API Network SSIDs as used by wireless on Z or MX models
+
+        Args:
+            networkId (str): [description]
+
+        Returns:
+            list: [description]
+        """
+        url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids" % (networkId)
+        return self.get_json(url)
+
+    def getNetworkSsid(self, networkId: str, number: int) -> dict:
+        """Get the older API Network SSIDs as used by wireless on Z or MX models
+
+        Args:
+            networkId (str): [description]
+
+        Returns:
+            list: [description]
+        """
+        url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids/%d" % (networkId, number)
+        return self.get_json(url)
+
+    def putNetworkSsid(self, networkId: str, number: int, settings: dict) -> dict:
+        """Put using the older API Network SSIDs as used by wireless on Z or MX models
+
+        Args:
+            networkId (str): [description]
+            settings (dict): settings for the SSID
+
+        Returns:
+            list: [description]
+        """
+        url = "https://dashboard.meraki.com/api/v0/networks/%s/ssids/%d" % (networkId, number)
+        return self.put_json(url, settings)
 
     def getNetworkWirelessSsids(self, networkId: str) -> dict:
         try:
@@ -68,15 +198,34 @@ class MerakiCopySSID:
         except meraki.exceptions.APIError:
             return None
 
-    def listSSIDs(self, network_name: str):
+    def getNetworkDevices(self, networkId: str) -> dict:
+        """Get all Meraki devices for a network.
 
-        if network_name in self.networks_by_name:
-            networkId = self.networks_by_name[network_name]['id']
+        Args:
+            networkId (str): [description]
+
+        Returns:
+            dict: [description]
+        """
+        try:
+            return self.dashboard.networks.getNetworkDevices(networkId)
+        except meraki.exceptions.APIError:
+            return None
+
+    def listSSIDs(self, network: NetworkSSID):
+
+        if network.network_name in self.networks_by_name:
+            networkId = self.networks_by_name[network.network_name]['id']
         else:
-            print(f"Error: unknown network: {network_name}")
+            print(f"Error: unknown network: {network.network_name}")
             return
 
-        ssids = self.getNetworkWirelessSsids(networkId)
+        if self.has_mr(network):
+            ssids = self.getNetworkWirelessSsids(networkId)
+        else:
+            ssids = self.getNetworkSsids(networkId)
+
+        # ssids = self.getNetworkWirelessSsids(networkId)
         if ssids:
             for ssid in ssids:
                 if self.verbose:
@@ -120,6 +269,15 @@ class MerakiCopySSID:
         else:
             print("Error: no networks found in organization")
 
+    def has_mr(self, network: NetworkSSID) -> bool:
+        if not network.devices:
+            network.devices = self.getNetworkDevices(network.network_id)
+        # print(f'devices={devices}')
+        for device in network.devices:
+            if device['model'].startswith('MR'):
+                return True
+        return False
+
     def copy(self):
 
         if self.source.network_name not in self.networks_by_name:
@@ -130,10 +288,10 @@ class MerakiCopySSID:
             print("Error: {} is unknown network".format(self.destination.network_name))
             return False
 
-        self.source.network_id = self.networks_by_name[self.source.network_name]['id']
-        self.destination.network_id = self.networks_by_name[self.destination.network_name]['id']
-
-        src_ssid = self.getNetworkWirelessSsid(self.source.network_id, self.source.SSID_number)
+        if self.has_mr(self.source):
+            src_ssid = self.getNetworkWirelessSsid(self.source.network_id, self.source.SSID_number)
+        else:
+            src_ssid = self.getNetworkSsid(self.source.network_id, self.source.SSID_number)
 
         if self.verbose:
             print("src_ssid={}".format(json.dumps(src_ssid, indent=2, sort_keys=True)))
@@ -162,6 +320,18 @@ class MerakiCopySSID:
                     else:
                         print(f"Error: {key} detected.  You must specify a --secret")
                         return False
+                    # unfortunately the API returns values set to null
+                    # but you cannot send values that are null
+                    new_servers = []
+                    for server in src_ssid[key]:
+                        print(f"radius server={server}")
+                        new_server = {}
+                        for attr in server.keys():
+                            print(f"attr={attr}")
+                            if server[attr] is not None:
+                                new_server[attr] = server[attr]
+                        new_servers.append(new_server)
+                    dst_ssid[key] = new_servers
 
         if self.destination.SSID_name:
             # override the SSID name
@@ -172,34 +342,43 @@ class MerakiCopySSID:
 
         if self.verbose:
             print("dst_ssid={}".format(json.dumps(dst_ssid, indent=2, sort_keys=True)))
-        self.updateNetworkWirelessSsid(self.destination.network_id, self.destination.SSID_number, dst_ssid)
+        if self.has_mr(self.destination):
+            self.updateNetworkWirelessSsid(self.destination.network_id, self.destination.SSID_number, dst_ssid)
+        else:
+            self.putNetworkSsid(self.destination.network_id, self.destination.SSID_number, dst_ssid)
         return True
 
-    def check_src_dst(self) -> bool:
-        has_error = False
+    def check_src_dst(self) -> bool: #pylint: disable=too-many-return-statements
+
         if not self.source.network_name:
             print("Error: please specify a source network with --srcnet")
-            has_error = True
-        elif self.source.SSID_number is None:
+            return True
+
+        self.source.network_id = self.networks_by_name[self.source.network_name]['id']
+
+        if self.source.SSID_number is None:
             print("Error: please specify a source SSID number with --srcssid")
-            self.listSSIDs(self.source.network_name)
-            has_error = True
-        elif not (self.source.SSID_number is not None and
+            self.listSSIDs(self.source)
+            return True
+        if not (self.source.SSID_number is not None and
                   self.source.SSID_number > -1 and self.source.SSID_number < 32):
             print("Error: source SSID number must be 0 to 32")
-            has_error = True
-        elif not self.destination.network_name:
+            return True
+        if not self.destination.network_name:
             print("Error: please specify a destination network with --dstnet")
-            has_error = True
-        elif self.destination.SSID_number is None:
+            return True
+
+        self.destination.network_id = self.networks_by_name[self.destination.network_name]['id']
+
+        if self.destination.SSID_number is None:
             print("Error: please specify a destination SSID number with --dstssid")
-            self.listSSIDs(self.destination.network_name)
-            has_error = True
-        elif not (self.destination.SSID_number is not None and
+            self.listSSIDs(self.destination)
+            return True
+        if not (self.destination.SSID_number is not None and
                   self.destination.SSID_number > -1 and self.destination.SSID_number < 32):
             print("Error: destination SSID number must be 0 to 32")
-            has_error = True
-        return has_error
+            return True
+        return False
 
     @staticmethod
     def usage():
@@ -267,6 +446,8 @@ class MerakiCopySSID:
             self.apikey = os.environ['MERAKI_APIKEY']
         if 'MERAKI_DASHBOARD_API_KEY' in os.environ:
             self.apikey = os.environ['MERAKI_DASHBOARD_API_KEY']
+        if 'MERAKI_ORGID' in os.environ:
+            organization_id = os.environ['MERAKI_ORGID']
 
         if not self.apikey:
             print("Missing apikey")
