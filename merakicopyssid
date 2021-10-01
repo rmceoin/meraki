@@ -324,10 +324,8 @@ class MerakiCopySSID:
                     # but you cannot send values that are null
                     new_servers = []
                     for server in src_ssid[key]:
-                        print(f"radius server={server}")
                         new_server = {}
                         for attr in server.keys():
-                            print(f"attr={attr}")
                             if server[attr] is not None:
                                 new_server[attr] = server[attr]
                         new_servers.append(new_server)
