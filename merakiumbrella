@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 #
 # Update Umbrella Networks based on Meraki Networks
@@ -36,162 +36,263 @@
 #    umbrella: 'Another Network'
 #
 
-import getopt, os, sys, base64
-import yaml
-from meraki import meraki
+import base64
+import getopt
+import os
+import sys
+
 import requests
+import yaml
 
-verbose = False
+import meraki
 
-def doDynDns2(username, password, hostname, myip):
-    global verbose
+DEFAULT_CONFIG_NAME = 'merakiumbrella.yaml'
 
-    url = 'https://updates.opendns.com/nic/update?hostname={}&origin_ip={}'.format(hostname.replace(" ","%20"), myip)
+class MerakiUmbrella:
+    """Use Meraki network details to update Umbrella
+    """
+    def __init__(self, verbose=False):
+        self.configuration = {}
+        self.verbose = verbose
+        self.debug = False
+        self.apikey = ''
+        self.orgid = ''
+        self.dashboard = None
+        self.configfile = DEFAULT_CONFIG_NAME
 
-    if verbose:
-        print("url={}".format(url))
+    def get_dashboard(self):
+        """Create the dashboard API object
+        """
+        try:
+            self.dashboard = meraki.DashboardAPI(api_key=self.apikey,
+                                                 output_log=self.debug,
+                                                 print_console=self.debug,
+                                                 suppress_logging=True)
+        except meraki.exceptions.APIKeyError as exception:
+            print(f"Error: {exception}")
+            sys.exit(5)
 
-    headers = {}
-#    headers['X-Cisco-Meraki-API-Key'] = key
+    def get_organization(self) -> dict:
+        """Get the organization object.
 
-    try:
-        r = requests.get(url, headers=headers, auth=(username, password))
-    except requests.exceptions.RequestException as e:
-        print("Error: %s" % (e))
+        If there are more than one organizations accessible by the apikey,
+        then the configuration must specify which one to use.
+
+        Returns:
+            dict: [description]
+        """
+        try:
+            organizations = self.dashboard.organizations.getOrganizations()
+        except meraki.exceptions.APIError as exception:
+            print(f"Error: Unable to get organizations: {exception}")
+            return None
+
+        if not organizations:
+            print("Error: No organizations found")
+            return None
+
+        # print("len(organizations) == {}".format(len(organizations)))
+        if len(organizations) > 1:
+            org_id = None
+            if 'meraki' in self.configuration and 'org_id' in self.configuration['meraki']:
+                org_id = self.configuration['meraki']['org_id']
+
+            for organization in organizations:
+                if self.verbose:
+                    #print("org={}".format(organizations))
+                    print("Organization: {} {}".format(organization['id'], organization['name']))
+                if org_id == organization['id']:
+                    return organization
+                if self.orgid == organization['id']:
+                    return organization
+            if not org_id:
+                print("Error: more than one organization available, but none specified")
+            else:
+                print(f"Error: org_id not found: {org_id}")
+            sys.exit(9)
+        return organizations[0]
+
+    def get_networks(self):
+        """Get the Meraki networks
+        """
+        organization = self.get_organization()
+        try:
+            networks = self.dashboard.organizations.getOrganizationNetworks(organization['id'])
+        except meraki.exceptions.APIError as exception:
+            print(f"Error: Unable to get networks: {exception}")
+            return None
+        return networks
+
+    def doDynDns2(username, password, hostname, myip):
+        """Perform a dynamic update
+
+        Args:
+            username ([type]): [description]
+            password ([type]): [description]
+            hostname ([type]): [description]
+            myip ([type]): [description]
+        """
+        url = 'https://updates.opendns.com/nic/update?hostname={}&origin_ip={}'.format(hostname.replace(" ","%20"), myip)
+
+        if self.verbose:
+            print(f"url={url}")
+
+        headers = {}
+    #    headers['X-Cisco-Meraki-API-Key'] = key
+
+        try:
+            r = requests.get(url, headers=headers, auth=(username, password))
+        except requests.exceptions.RequestException as e:
+            print("Error: %s" % (e))
+            return False
+        except KeyboardInterrupt:
+            print("Aborted")
+            sys.exit(25)
+
+        if self.verbose:
+            print("r.status_code = %s" % (r.status_code))
+            print("r.text = %s" % (r.text))
+
+        if r.status_code == 400:
+            if self.verbose:
+                print("400 Bad request: %s : %s" % (url, r.text))
+            return False
+        if r.status_code == 401:
+            print("Bad auth ({}): {}".format(username,url))
+            sys.exit(50)
+        if r.status_code == 404:
+            print("404 Not found: %s" % (url))
+            return False
+        if r.status_code != 200:
+            print("Error: %s - %s" % (r.status_code, r.text))
+            return False
+
+        if r.text.startswith("good"):
+            print("{} updated to {}".format(hostname, myip))
+            return True
+        elif r.text == "nohost":
+            print("{} Umbrella network does not exist.  Or account/source IP not authorized.".format(hostname))
+
         return False
-    except KeyboardInterrupt:
-        print("Aborted")
-        sys.exit(25)
 
-    if verbose:
-        print("r.status_code = %s" % (r.status_code))
-        print("r.text = %s" % (r.text))
+    def get_config(self):
+        """Get config from configuration file
+        """
+        if not os.path.isfile(self.configfile):
+            print("Config file missing: {}".format(self.configfile))
+            sys.exit(3)
 
-    if r.status_code == 400:
-        if verbose:
-            print("400 Bad request: %s : %s" % (url, r.text))
-        return False
-    if r.status_code == 401:
-        print("Bad auth ({}): {}".format(username,url))
-        sys.exit(50)
-    if r.status_code == 404:
-        print("404 Not found: %s" % (url))
-        return False
-    if r.status_code != 200:
-        print("Error: %s - %s" % (r.status_code, r.text))
-        return False
+        with open(self.configfile) as fp:
+            self.configuration = yaml.load(fp, Loader=yaml.SafeLoader)
 
-    if r.text.startswith("good"):
-        print("{} updated to {}".format(hostname, myip))
-        return True
-    elif r.text == "nohost":
-        print("{} Umbrella network does not exist.  Or account/source IP not authorized.".format(hostname))
+        if self.verbose:
+            print("configuration={}".format(self.configuration))
 
-    return False
+        if 'apikey' in self.configuration:
+            self.apikey = self.configuration['apikey']
 
-def main():
-    global verbose
+        if len(self.apikey) < 1:
+            print("Missing apikey")
+            sys.exit(1)
 
-    apikey = ''
-    orgid = 0
-    configFilename = ''
+        if not 'networks' in self.configuration:
+            print("Missing 'networks' in configuration")
+            sys.exit(20)
 
-    if 'MERAKI_APIKEY' in os.environ:
-        apikey = os.environ['MERAKI_APIKEY']
-    if 'MERAKI_ORGID' in os.environ:
-        orgid = os.environ['MERAKI_ORGID']
+        if not 'umbrella' in self.configuration:
+            print("Missing 'umbrella' in configuration")
+            sys.exit(21)
 
-    options, remainder = getopt.getopt(sys.argv[1:], 'a:c:v', [ 'apikey=', 'config=',
-                                                             'verbose',
-                                                             ])
-    for opt, arg in options:
-        if opt in ('-v', '--verbose'):
-            verbose = True
-        elif opt in ('-a', '--apikey'): 
-            apikey = arg
-        elif opt in ('-c', '--config'): 
-            configFilename = arg
+        if not 'username' in self.configuration['umbrella']:
+            print("Missing 'username' in umbrella configuration")
+            sys.exit(21)
 
-    if len(configFilename) < 1:
-        print("Missing config filename")
-        sys.exit(2)
+        if ((not 'password' in self.configuration['umbrella']) and
+            (not 'password64' in self.configuration['umbrella'])):
+            print("Missing 'password' or 'password64' in configuration")
+            sys.exit(22)
 
-    if not os.path.isfile(configFilename):
-        print("Config file missing: {}".format(configFilename))
-        sys.exit(3)
+    def get_umbrella_password(self) -> str:
+        """Get the Umbrella password from configuration
+        """
+        if 'password' in self.configuration['umbrella']:
+            return self.configuration['umbrella']['password']
 
-    configuration = {}
+        if 'password64' in self.configuration['umbrella']:
+            return base64.b64decode(self.configuration['umbrella']['password64'])
+        return None
 
-    with open(configFilename) as fp:
-        configuration = yaml.load(fp)
+    def main(self):
+        """
+        Parse the command line and configuration.
+        """
+        if 'MERAKI_APIKEY' in os.environ:
+            self.apikey = os.environ['MERAKI_APIKEY']
+        if 'MERAKI_ORGID' in os.environ:
+            self.orgid = os.environ['MERAKI_ORGID']
 
-    if verbose:
-        print("configuration={}".format(configuration))
+        options = getopt.getopt(sys.argv[1:], 'a:c:o:v', [ 'apikey=', 'config=', 'orgid='
+                                                                'verbose',
+                                                                ])[0]
+        for opt, arg in options:
+            if opt in ('-v', '--verbose'):
+                self.verbose = True
+            elif opt in ('-a', '--apikey'):
+                self.apikey = arg
+            elif opt in ('-c', '--config'):
+                self.configfile = arg
+            elif opt in ('-o', '--orgid'):
+                self.orgid = arg
 
-    if 'apikey' in configuration:
-        apikey = configuration['apikey']
+        if len(self.configfile) < 1:
+            print("Missing config filename")
+            sys.exit(2)
 
-    if len(apikey) < 1:
-        print("Missing apikey")
-        sys.exit(1)
+        self.get_config()
 
-    if orgid == 0:
-        # if no orgid specified, then use the first one associated with account
-        myOrgs = meraki.myorgaccess(apikey, True)
-        for org in myOrgs:
-            orgid=org['id']
+        self.get_dashboard()
 
-    networks = meraki.getnetworklist(apikey, orgid, None, True)
-#    for network in networks:
-#        print("{}".format(network))
+        org = self.get_organization()
+        # print(f'org={org}')
+        uplinks = self.dashboard.appliance.getOrganizationApplianceUplinkStatuses(org['id'])
+        # print(f'uplinks={uplinks}')
 
-    networksByName = {}
-    for network in networks:
-        networksByName[network['name']] = network
+        uplinks_by_network_id = {}
+        for uplink in uplinks:
+            uplinks_by_network_id[uplink['networkId']] = uplink
 
-    if not 'networks' in configuration:
-        print("Missing 'networks' in configuration")
-        sys.exit(20)
+        networks = self.get_networks()
+        #for network in networks:
+        #    print(f"{network}")
 
-    if not 'username' in configuration:
-        print("Missing 'userame' in configuration")
-        sys.exit(21)
+        networksByName = {}
+        networks_by_id = {}
+        for network in networks:
+            networksByName[network['name']] = network
+            networks_by_id[network['id']] = network
 
-    if (not 'password' in configuration) and (not 'password64' in configuration):
-        print("Missing 'password' or 'password64' in configuration")
-        sys.exit(22)
+        password = self.get_umbrella_password()
 
+        for network in self.configuration['networks']:
+            if self.verbose:
+                print(f"network={network}")
+                print("meraki={}".format(network['meraki']))
+            if not network['meraki'] in networksByName:
+                print("{} is not a known Meraki network".format(network['meraki']))
+                sys.exit(30)
 
-    password = ''
-    if 'password' in configuration:
-        password = configuration['password']
+            app_uplink = uplinks_by_network_id[networksByName[network['meraki']]['id']]
+            print(f'app_uplink={app_uplink}')
 
-    if 'password64' in configuration:
-        password = base64.b64decode(configuration['password64'])
-
-    for network in configuration['networks']:
-        if verbose:
-            print("network={}".format(network))
-            print("meraki={}".format(network['meraki']))
-        if not network['meraki'] in networksByName:
-            print("{} is not a known Meraki network".format(network['meraki']))
-            sys.exit(30)
-
-        devices = meraki.getnetworkdevices(apikey, networksByName[network['meraki']]['id'], True)
-        if len(devices) == 1:
-            uplinks = meraki.getdeviceuplink(apikey, networksByName[network['meraki']]['id'], devices[0]['serial'], True)
-            if verbose:
-                print("uplinks={}".format(uplinks))
-            for uplink in uplinks:
-                if uplink['status'] == 'Active':
-                    if verbose:
+            for uplink in app_uplink['uplinks']:
+                print(f'uplink={uplink}')
+                if uplink['status'] == 'active':
+                    if self.verbose:
                         print("publicIp={}".format(uplink['publicIp']))
-                    doDynDns2(configuration['username'], password, network['umbrella'], uplink['publicIp'])
-        elif len(devices) > 1:
-            print("{} has more than one device.  Skipping.".format(network['meraki']))
+                    #self.doDynDns2(self.configuration['username'], password, network['umbrella'], uplink['publicIp'])
 
-    sys.exit(0)
+
+        sys.exit(0)
 
 if __name__ == "__main__":
-    main()
-
+    MerakiUmbrella().main()
