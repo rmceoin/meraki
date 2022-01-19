@@ -109,6 +109,10 @@ class MerakiAPI:
         url = "https://dashboard.meraki.com/api/v0/devices/%s/clients?timespan=%d" % (deviceId, duration)
         return self.getJson(url)
 
+    def getNetworkClients(self, networkId: str, duration: int) -> list:
+        url = "https://dashboard.meraki.com/api/v1/networks/%s/clients?timespan=%d&perPage=1000" % (networkId, duration)
+        return self.getJson(url)
+
     # Devices
 
     def getDevices(self, networkId: str) -> list:
@@ -359,26 +363,45 @@ class MerakiAPI:
     def listClients(self, orgid):
         networks = self.getNetworksFiltered(orgid)
 
+        print('%s,%s,"%s","%s","%s",%s,"%s",%s,"%s",%s,"%s"' % (
+            'name',
+            'description',
+            'lastSeen',
+            'deviceTypePrediction',
+            'os',
+            'ip',
+            'manufacturer',
+            'mac',
+            'user',
+            'vlan',
+            'notes'
+        ))
         for network in networks:
             if self.verbose:
                 print("Network: %s (%s)" % (network['name'], self.networkFilter))
 
-            devices = self.getDevices(network['id'])
-            if devices is False:
-                print("Unable to getDevices.  Wrong apikey?")
-                return False
+            clients = self.getNetworkClients(network['id'], self.duration)
+            #print("clients: %s" % (clients))
+            if clients:
+                for client in clients:
+                    #print("client: %s" % (client))
+                    vlan = "0"
+                    if client['vlan']:
+                        vlan = int(client['vlan'])
+                    print('%s,%s,"%s","%s","%s",%s,"%s",%s,"%s",%s,"%s"' % (
+                        network['name'],
+                        client['description'],
+                        client['lastSeen'],
+                        client['deviceTypePrediction'],
+                        client['os'],
+                        client['ip'],
+                        client['manufacturer'],
+                        client['mac'],
+                        client['user'],
+                        client['vlan'],
+                        client['notes']
+                    ))
 
-            for device in devices:
-
-                clients = self.getClients(device['serial'], self.duration)
-        # {u'dhcpHostname': None, u'description': None, u'switchport': None, u'ip': u'100.122.129.85', u'vlan': 2, u'mac': u'c0:8c:60:6c:7a:37', u'usage': {u'recv': 7.0, u'sent': 0.0}, u'mdnsName': None, u'id': u'z647a8155'}
-                if clients:
-                    for client in clients:
-                        vlan = 0
-                        if client['vlan']:
-                            vlan = client['vlan']
-                        print("%s,%s,%s,%s,%d,%d,%d" % (network['name'], client['description'], client['ip'], client['mac'], \
-                                vlan, client['usage']['recv'], client['usage']['sent']))
         return True
 
     def listDeviceStatuses(self, orgid):
