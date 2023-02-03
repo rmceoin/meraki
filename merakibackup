@@ -26,7 +26,6 @@ import sys
 
 import meraki
 
-
 class MerakiBackup:
     """
     Create a backup JSON of a Meraki dashboard
@@ -39,147 +38,147 @@ class MerakiBackup:
         self.output_filename = None
         self.dashboard = None
 
-    def getNetworkConnectivityMonitoringDestinations(self, networkId: str) -> dict:
+    def getNetworkApplianceConnectivityMonitoringDestinations(self, networkId: str) -> dict:
         try:
-            return self.dashboard.connectivity_monitoring_destinations.getNetworkConnectivityMonitoringDestinations(networkId)
+            return self.dashboard.appliance.getNetworkApplianceConnectivityMonitoringDestinations(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkContentFiltering(self, networkId: str) -> dict:
+    def getNetworkApplianceContentFiltering(self, networkId: str) -> dict:
         try:
-            return self.dashboard.content_filtering_rules.getNetworkContentFiltering(networkId)
+            return self.dashboard.appliance.getNetworkApplianceContentFiltering(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkDeviceLldp_cdp(self, networkId: str, serial: str) -> dict:
+    def getDeviceLldpCdp(self, networkId: str, serial: str) -> dict:
         try:
-            return self.dashboard.devices.getNetworkDeviceLldp_cdp(networkId, serial, timespan=10800)
+            return self.dashboard.devices.getDeviceLldpCdp(serial)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkFirewalledServices(self, networkId: str) -> dict:
+    def getNetworkApplianceFirewallFirewalledServices(self, networkId: str) -> dict:
         try:
-            return self.dashboard.firewalled_services.getNetworkFirewalledServices(networkId)
+            return self.dashboard.appliance.getNetworkApplianceFirewallFirewalledServices(networkId)
         except meraki.exceptions.APIError:
             return None
 
     def getNetworkGroupPolicies(self, networkId: str) -> dict:
         try:
-            return self.dashboard.group_policies.getNetworkGroupPolicies(networkId)
+            return self.dashboard.networks.getNetworkGroupPolicies(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkSecurityIntrusionSettings(self, networkId: str) -> dict:
+    def getNetworkApplianceSecurityIntrusion(self, networkId: str) -> dict:
         try:
-            return self.dashboard.intrusion_settings.getNetworkSecurityIntrusionSettings(networkId)
+            return self.dashboard.appliance.getNetworkApplianceSecurityIntrusion(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkSecurityMalwareSettings(self, networkId: str) -> dict:
+    def getNetworkApplianceSecurityMalware(self, networkId: str) -> dict:
         try:
-            return self.dashboard.malware_settings.getNetworkSecurityMalwareSettings(networkId)
+            return self.dashboard.appliance.getNetworkApplianceSecurityMalware(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkDeviceManagementInterfaceSettings(self, networkId: str, serial: str) -> dict:
+    def getDeviceManagementInterface(self, networkId: str, serial: str) -> dict:
         try:
-            return self.dashboard.management_interface_settings.getNetworkDeviceManagementInterfaceSettings(networkId, serial)
+            return self.dashboard.devices.getDeviceManagementInterface(serial)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkOneToOneNatRules(self, networkId: str) -> dict:
+    def getNetworkApplianceFirewallOneToOneNatRules(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_1_1_nat_rules.getNetworkOneToOneNatRules(networkId)
+            return self.dashboard.appliance.getNetworkApplianceFirewallOneToOneNatRules(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkOneToManyNatRules(self, networkId: str) -> dict:
+    def getNetworkApplianceFirewallOneToManyNatRules(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_1_many_nat_rules.getNetworkOneToManyNatRules(networkId)
+            return self.dashboard.appliance.getNetworkApplianceFirewallOneToManyNatRules(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkL3FirewallRules(self, networkId: str) -> dict:
+    def getNetworkApplianceFirewallL3FirewallRules(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_l3_firewall.getNetworkL3FirewallRules(networkId)
+            return self.dashboard.appliance.getNetworkApplianceFirewallL3FirewallRules(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkL7FirewallRules(self, networkId: str) -> dict:
+    def getNetworkApplianceFirewallL7FirewallRules(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_l7_firewall.getNetworkL7FirewallRules(networkId)
+            return self.dashboard.appliance.getNetworkApplianceFirewallL7FirewallRules(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkL7FirewallRulesApplicationCategories(self, networkId: str) -> dict:
+    def getNetworkApplianceFirewallL7FirewallRulesApplicationCategories(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_l7_application_categories.getNetworkL7FirewallRulesApplicationCategories(networkId)
+            return self.dashboard.appliance.getNetworkApplianceFirewallL7FirewallRulesApplicationCategories(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkPortForwardingRules(self, networkId: str) -> dict:
+    def getNetworkApplianceFirewallPortForwardingRules(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_port_forwarding_rules.getNetworkPortForwardingRules(networkId)
+            return self.dashboard.appliance.getNetworkApplianceFirewallPortForwardingRules(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkStaticRoutes(self, networkId: str) -> dict:
+    def getNetworkApplianceStaticRoutes(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_static_routes.getNetworkStaticRoutes(networkId)
+            return self.dashboard.appliance.getNetworkApplianceStaticRoutes(networkId)
         except meraki.exceptions.APIError:
             return None
 
     def getNetworkAppliancePorts(self, networkId: str):
         try:
-            return self.dashboard.mx_vlan_ports.getNetworkAppliancePorts(networkId)
+            return self.dashboard.appliance.getNetworkAppliancePorts(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkWarmSpareSettings(self, networkId: str) -> dict:
+    def getNetworkApplianceWarmSpare(self, networkId: str) -> dict:
         try:
-            return self.dashboard.mx_warm_spare_settings.getNetworkWarmSpareSettings(networkId)
+            return self.dashboard.appliance.getNetworkApplianceWarmSpare(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkSiteToSiteVpn(self, networkId: str) -> dict:
+    def getNetworkApplianceVpnSiteToSiteVpn(self, networkId: str) -> dict:
         try:
-            return self.dashboard.networks.getNetworkSiteToSiteVpn(networkId)
+            return self.dashboard.appliance.getNetworkApplianceVpnSiteToSiteVpn(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkSnmpSettings(self, networkId: str) -> dict:
+    def getNetworkSnmp(self, networkId: str) -> dict:
         try:
-            return self.dashboard.snmp_settings.getNetworkSnmpSettings(networkId)
+            return self.dashboard.networks.getNetworkSnmp(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkSsids(self, networkId: str) -> dict:
+    def getNetworkWirelessSsids(self, networkId: str) -> dict:
         try:
-            return self.dashboard.ssids.getNetworkSsids(networkId)
+            return self.dashboard.wireless.getNetworkWirelessSsids(networkId)
         except meraki.exceptions.APIError:
             return None
 
     def getNetworkSyslogServers(self, networkId: str) -> dict:
         try:
-            return self.dashboard.syslog_servers.getNetworkSyslogServers(networkId)
+            return self.dashboard.networks.getNetworkSyslogServers(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkVlans(self, networkId: str) -> dict:
+    def getNetworkApplianceVlans(self, networkId: str) -> dict:
         try:
-            return self.dashboard.vlans.getNetworkVlans(networkId)
+            return self.dashboard.appliance.getNetworkApplianceVlans(networkId)
         except meraki.exceptions.APIError:
             return None
 
-    def getNetworkVlansEnabledState(self, networkId: str) -> dict:
+    def getNetworkApplianceVlansSettings(self, networkId: str) -> dict:
         try:
-            return self.dashboard.vlans.getNetworkVlansEnabledState(networkId)
+            return self.dashboard.appliance.getNetworkApplianceVlansSettings(networkId)
         except meraki.exceptions.APIError:
             return None
 
     def getNetworkWirelessSettings(self, networkId: str) -> dict:
         try:
-            return self.dashboard.wireless_settings.getNetworkWirelessSettings(networkId)
+            return self.dashboard.wireless.getNetworkWirelessSettings(networkId)
         except meraki.exceptions.APIError:
             return None
 
@@ -202,99 +201,104 @@ class MerakiBackup:
                 if self.verbose:
                     print("skipping")
                     continue
-            networks = self.dashboard.networks.getOrganizationNetworks(organization['id'])
+            networks = self.dashboard.organizations.getOrganizationNetworks(organization['id'])
             if networks:
                 for network in networks:
                     if self.verbose:
                         print("Network: {}".format(network['name']))
+                        #print(f'debug: network={network}')
 
                     if networkFilter and not regex.match(network['name']):
                         continue
 
-                    alertSettings = self.dashboard.alert_settings.getNetworkAlertSettings(network['id'])
+                    alertSettings = self.dashboard.networks.getNetworkAlertsSettings(network['id'])
                     network['alertSettings'] = alertSettings
 
-                    httpServers = self.dashboard.http_servers.getNetworkHttpServers(network['id'])
+                    httpServers = self.dashboard.networks.getNetworkWebhooksHttpServers(network['id'])
                     network['httpServers'] = httpServers
 
-                    network['connectivityMonitoringDestinations'] = self.getNetworkConnectivityMonitoringDestinations(network['id'])
+                    if 'appliance' in network['productTypes']:
 
-                    vlansEnabledState = self.getNetworkVlansEnabledState(network['id'])
-                    network['vlansEnabledState'] = vlansEnabledState
+                        network['connectivityMonitoringDestinations'] = self.getNetworkApplianceConnectivityMonitoringDestinations(network['id'])
 
-                    if vlansEnabledState and vlansEnabledState['enabled']:
-                        network['vlans'] = self.getNetworkVlans(network['id'])
+                        vlansSettings = self.getNetworkApplianceVlansSettings(network['id'])
+                        network['vlansSettings'] = vlansSettings
 
-                    network['firewalledServices'] = self.getNetworkFirewalledServices(network['id'])
+                        if vlansSettings and vlansSettings['vlansEnabled']:
+                            network['vlans'] = self.getNetworkApplianceVlans(network['id'])
+                            network['appliancePorts'] = self.getNetworkAppliancePorts(network['id'])
 
-                    network['staticRoutes'] = self.getNetworkStaticRoutes(network['id'])
+                        network['firewalledServices'] = self.getNetworkApplianceFirewallFirewalledServices(network['id'])
 
-                    network['siteToSiteVpn'] = self.getNetworkSiteToSiteVpn(network['id'])
+                        network['staticRoutes'] = self.getNetworkApplianceStaticRoutes(network['id'])
 
-                    network['l3FirewallRules'] = self.getNetworkL3FirewallRules(network['id'])
+                        network['siteToSiteVpn'] = self.getNetworkApplianceVpnSiteToSiteVpn(network['id'])
+
+                        network['l3FirewallRules'] = self.getNetworkApplianceFirewallL3FirewallRules(network['id'])
+
+                        # should figure out if MX
+                        network['intrusionSettings'] = self.getNetworkApplianceSecurityIntrusion(network['id'])
+
+                        network['malwareSettings'] = self.getNetworkApplianceSecurityMalware(network['id'])
+
+                        network['warmSpareSettings'] = self.getNetworkApplianceWarmSpare(network['id'])
+
+                        network['l7FirewallRules'] = self.getNetworkApplianceFirewallL7FirewallRules(network['id'])
+
+                        network['l7ApplicationCategories'] = self.getNetworkApplianceFirewallL7FirewallRulesApplicationCategories(network['id'])
+
+                        network['contentFiltering'] = self.getNetworkApplianceContentFiltering(network['id'])
+
+                        network['oneToOneNatRules'] = self.getNetworkApplianceFirewallOneToOneNatRules(network['id'])
+
+                        network['oneToManyNatRules'] = self.getNetworkApplianceFirewallOneToManyNatRules(network['id'])
+
+                        network['portForwardingRules'] = self.getNetworkApplianceFirewallPortForwardingRules(network['id'])
+
 
                     network['groupPolicies'] = self.getNetworkGroupPolicies(network['id'])
 
-                    network['intrusionSettings'] = self.getNetworkSecurityIntrusionSettings(network['id'])
-
-                    network['malwareSettings'] = self.getNetworkSecurityMalwareSettings(network['id'])
-
-                    network['warmSpareSettings'] = self.getNetworkWarmSpareSettings(network['id'])
-
-                    network['l7FirewallRules'] = self.getNetworkL7FirewallRules(network['id'])
-
-                    network['l7ApplicationCategories'] = self.getNetworkL7FirewallRulesApplicationCategories(network['id'])
-
-                    network['ssids'] = self.getNetworkSsids(network['id'])
-
                     network['syslogServers'] = self.getNetworkSyslogServers(network['id'])
 
-                    network['contentFiltering'] = self.getNetworkContentFiltering(network['id'])
+                    network['snmp'] = self.getNetworkSnmp(network['id'])
 
-                    network['oneToOneNatRules'] = self.getNetworkOneToOneNatRules(network['id'])
+                    if 'wireless' in network['productTypes']:
+                        network['wirelessSsids'] = self.getNetworkWirelessSsids(network['id'])
+                        network['wirelessSettings'] = self.getNetworkWirelessSettings(network['id'])
 
-                    network['oneToManyNatRules'] = self.getNetworkOneToManyNatRules(network['id'])
-
-                    network['portForwardingRules'] = self.getNetworkPortForwardingRules(network['id'])
-
-                    network['appliancePorts'] = self.getNetworkAppliancePorts(network['id'])
-
-                    network['snmp'] = self.getNetworkSnmpSettings(network['id'])
-
-                    network['wirelessSettings'] = self.getNetworkWirelessSettings(network['id'])
-
-                    devices = self.dashboard.devices.getNetworkDevices(network['id'])
+                    devices = self.dashboard.networks.getNetworkDevices(network['id'])
                     network['devices'] = devices
                     if devices:
                         for device in devices:
                             device_name = None
                             if 'name' in device:
                                 device_name = device['name']
+                            #print(f'debug: device={device}')
                             if self.verbose:
                                 print(" Device: {}".format(device_name))
-                            uplink = self.dashboard.devices.getNetworkDeviceUplink(network['id'], device['serial'])
-                            device['uplink'] = uplink
 
-                            lldp_cdp = self.getNetworkDeviceLldp_cdp(network['id'], device['serial'])
+                            if device['model'].startswith('MX'):
+                                uplink = self.dashboard.appliance.getDeviceApplianceUplinksSettings(device['serial'])
+                                device['uplink'] = uplink
+
+                            lldp_cdp = self.getDeviceLldpCdp(network['id'], device['serial'])
                             device['lldp_cdp'] = lldp_cdp
 
-                            device['managementInterfaceSettings'] = self.getNetworkDeviceManagementInterfaceSettings(network['id'], device['serial'])
+                            if device['model'].startswith('MX') or device['model'].startswith('MR'):
+                                device['managementInterfaceSettings'] = self.getDeviceManagementInterface(network['id'], device['serial'])
 
             organization['networks'] = networks
 
-            admins = self.dashboard.admins.getOrganizationAdmins(organization['id'])
+            admins = self.dashboard.organizations.getOrganizationAdmins(organization['id'])
             organization['admins'] = admins
 
-            organizationIntrusionSettings = self.dashboard.intrusion_settings.getOrganizationSecurityIntrusionSettings(organization['id'])
-            organization['intrusionSettings'] = organizationIntrusionSettings
-
-            vpnFirewallRules = self.dashboard.mx_vpn_firewall.getOrganizationVpnFirewallRules(organization['id'])
+            vpnFirewallRules = self.dashboard.appliance.getOrganizationApplianceVpnVpnFirewallRules(organization['id'])
             organization['vpnFirewallRules'] = vpnFirewallRules
 
-            thirdPartyVPNPeers = self.dashboard.organizations.getOrganizationThirdPartyVPNPeers(organization['id'])
+            thirdPartyVPNPeers = self.dashboard.appliance.getOrganizationApplianceVpnThirdPartyVPNPeers(organization['id'])
             organization['thirdPartyVPNPeers'] = thirdPartyVPNPeers
 
-            samlRoles = self.dashboard.saml_roles.getOrganizationSamlRoles(organization['id'])
+            samlRoles = self.dashboard.organizations.getOrganizationSamlRoles(organization['id'])
             organization['samlRoles'] = samlRoles
 
         if self.output_filename:
